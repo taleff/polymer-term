@@ -778,5 +778,95 @@ class TestFitResultRepr:
         assert 'tau' in repr_str  # tau > 0 should be shown
 
 
+class TestHighDPFitting:
+    """Test fitting with high degree of polymerization samples."""
+
+    def test_fit_high_dp_sample(self):
+        """Test that fit_mwd works correctly for high DP (nu=500)."""
+        mws = np.logspace(3, 6, 500)  # 1k to 1M
+        params = {
+            "monomer_mw": 100.0,
+            "nu": 500.0,
+            "alpha": 0.0005,
+            "init_mon": 1.0,
+            "init": 0.001,
+            "order": 1.0,
+            "sigma": 0.12
+        }
+
+        mwd_ints = calculate_mwd(
+            mws,
+            params['monomer_mw'],
+            params['nu'],
+            params['alpha'],
+            params['init_mon'],
+            params['init'],
+            params['order'],
+            params['sigma']
+        )
+
+        result = fit_mwd(
+            mws, mwd_ints,
+            order=params['order'],
+            monomer_mw=params['monomer_mw'],
+            init_mon=params['init_mon'],
+            sigma=params['sigma']
+        )
+
+        # Should achieve good fit
+        assert result.r_squared > 0.95
+        # Should recover alpha within 20%
+        assert np.isclose(result.alpha, params['alpha'], rtol=0.2)
+
+    def test_quadrature_points_parameter(self):
+        """Test that n_quadrature_points parameter works."""
+        mws = np.logspace(3, 5, 200)
+        params = {
+            "monomer_mw": 100.0,
+            "nu": 100.0,
+            "alpha": 0.002,
+            "init_mon": 1.0,
+            "init": 0.005,
+            "order": 1.0,  # First order is more stable for quadrature comparison
+            "sigma": 0.12
+        }
+
+        mwd_ints = calculate_mwd(
+            mws,
+            params['monomer_mw'],
+            params['nu'],
+            params['alpha'],
+            params['init_mon'],
+            params['init'],
+            params['order'],
+            params['sigma']
+        )
+
+        # Fit with different quadrature points
+        result_50 = fit_mwd(
+            mws, mwd_ints,
+            order=params['order'],
+            monomer_mw=params['monomer_mw'],
+            init_mon=params['init_mon'],
+            sigma=params['sigma'],
+            n_quadrature_points=50
+        )
+
+        result_150 = fit_mwd(
+            mws, mwd_ints,
+            order=params['order'],
+            monomer_mw=params['monomer_mw'],
+            init_mon=params['init_mon'],
+            sigma=params['sigma'],
+            n_quadrature_points=150
+        )
+
+        # Both should give good fits
+        assert result_50.r_squared > 0.95
+        assert result_150.r_squared > 0.95
+        # Results should be similar (both converge to same solution)
+        assert np.isclose(result_50.alpha, result_150.alpha, rtol=0.15)
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
