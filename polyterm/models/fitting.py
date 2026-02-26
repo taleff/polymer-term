@@ -999,7 +999,8 @@ def fit_mwd(
     return _build_fit_result(
         opt_result, fit_mws, fit_ints, dps, monomer_mw, init_mon, order,
         sigma=sigma, tau=tau_val, combination=combination, bn=bn,
-        param_spec=param_spec, fit_sigma=fit_sigma
+        param_spec=param_spec, fit_sigma=fit_sigma,
+        n_quadrature_points=n_quadrature_points
     )
 
 
@@ -1307,7 +1308,8 @@ def _build_fit_result(
     combination: bool,
     bn: float,
     param_spec: Dict,
-    fit_sigma: bool
+    fit_sigma: bool,
+    n_quadrature_points: int = 100
 ) -> FitResult:
     """
     Build FitResult from optimization output.
@@ -1337,7 +1339,8 @@ def _build_fit_result(
     pred_ints = _calculate_mwd_internal(
         alpha, init_val, dps, fit_mws, broadenings,
         init_mon, order, combination, bn,
-        time=time
+        time=time,
+        n_quadrature_points=n_quadrature_points
     )
 
     # Calculate dead chain intensities for visualization
