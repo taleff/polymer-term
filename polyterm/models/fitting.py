@@ -865,6 +865,7 @@ def fit_mwd(
     combination: bool = False,
     bn: float = 1.0,
     max_fit_points: int = 500,
+    n_quadrature_points: int = 100,
 ) -> FitResult:
     """
     Fit kinetic model to a molecular weight distribution.
@@ -898,6 +899,9 @@ def fit_mwd(
         Inverse of propagation order. Default 1.0.
     max_fit_points : int, optional
         Maximum points for fitting (downsamples if needed). Default 500.
+    n_quadrature_points : int, optional
+        Number of Gauss-Legendre quadrature points for integration.
+        Higher values improve accuracy but slow computation. Default 100.
 
     Returns
     -------
@@ -984,7 +988,8 @@ def fit_mwd(
     objective = _create_objective(
         fit_mws, fit_ints, dps, monomer_mw, init_mon, order,
         sigma=sigma, tau=tau_val, combination=combination, bn=bn,
-        param_spec=param_spec, fit_sigma=fit_sigma
+        param_spec=param_spec, fit_sigma=fit_sigma,
+        n_quadrature_points=n_quadrature_points
     )
 
     # Run optimization
@@ -1095,7 +1100,8 @@ def _create_objective(
     combination: bool,
     bn: float,
     param_spec: Dict,
-    fit_sigma: bool
+    fit_sigma: bool,
+    n_quadrature_points: int = 100
 ) -> callable:
     """
     Create objective function for optimization.
@@ -1134,13 +1140,15 @@ def _create_objective(
                 pred = _calculate_mwd_internal(
                     alpha, init_val, dps, fit_mws, cache['broadening'],
                     init_mon, order, combination, bn,
-                    time=params['time']
+                    time=params['time'],
+                    n_quadrature_points=n_quadrature_points
                 )
             else:
                 pred = _calculate_mwd_internal(
                     alpha, init_val, dps, fit_mws, cache['broadening'],
                     init_mon, order, combination, bn,
-                    conv=fixed_conversion
+                    conv=fixed_conversion,
+                    n_quadrature_points=n_quadrature_points
                 )
 
             residuals = pred - fit_ints
