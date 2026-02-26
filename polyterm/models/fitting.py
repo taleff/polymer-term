@@ -40,6 +40,31 @@ from ..utils import (
     prepare_fit_data,
 )
 
+
+def _get_quadrature_points(n_points: int, time_end: float) -> tuple:
+    """
+    Get Gauss-Legendre quadrature nodes and weights scaled to [0, time_end].
+
+    Parameters
+    ----------
+    n_points : int
+        Number of quadrature points.
+    time_end : float
+        Upper limit of integration interval [0, time_end].
+
+    Returns
+    -------
+    nodes : ndarray
+        Quadrature nodes in [0, time_end].
+    weights : ndarray
+        Corresponding quadrature weights.
+    """
+    nodes, weights = np.polynomial.legendre.leggauss(n_points)
+    scaled_nodes = (nodes + 1) * time_end / 2
+    scaled_weights = weights * time_end / 2
+    return scaled_nodes, scaled_weights
+
+
 __all__ = [
     'fit_mwd',
     'FitResult',

@@ -8,6 +8,49 @@ from functools import partial
 
 from polyterm import fit_mwd, FitResult
 from polyterm.core.distributions import calculate_mwd
+from polyterm.models.fitting import _get_quadrature_points
+
+
+class TestQuadratureHelper:
+    """Test the quadrature helper function."""
+
+    def test_returns_correct_shapes(self):
+        """Test that quadrature returns correct array shapes."""
+        n_points = 50
+        time_end = 10.0
+        nodes, weights = _get_quadrature_points(n_points, time_end)
+
+        assert nodes.shape == (n_points,)
+        assert weights.shape == (n_points,)
+
+    def test_nodes_in_correct_range(self):
+        """Test that nodes are scaled to [0, time_end]."""
+        n_points = 50
+        time_end = 10.0
+        nodes, weights = _get_quadrature_points(n_points, time_end)
+
+        assert np.all(nodes >= 0)
+        assert np.all(nodes <= time_end)
+
+    def test_weights_sum_to_interval(self):
+        """Test that weights sum to the interval length."""
+        n_points = 50
+        time_end = 10.0
+        nodes, weights = _get_quadrature_points(n_points, time_end)
+
+        assert np.isclose(np.sum(weights), time_end, rtol=1e-10)
+
+    def test_integrates_polynomial_exactly(self):
+        """Test that quadrature integrates low-degree polynomials exactly."""
+        n_points = 10
+        time_end = 5.0
+        nodes, weights = _get_quadrature_points(n_points, time_end)
+
+        f_vals = nodes ** 2
+        integral = np.sum(weights * f_vals)
+        expected = (time_end ** 3) / 3
+
+        assert np.isclose(integral, expected, rtol=1e-10)
 
 
 class TestFitMwdValidation:
