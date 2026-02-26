@@ -4,5 +4,13 @@ __pycache__/
 # Distribution / packaging
 dist/
 
-# MacOS Directory Files.
+# MacOS Directory Files
 .DS_Store
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# Emacs backup files
+*~
+\#*\#

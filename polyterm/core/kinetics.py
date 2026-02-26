@@ -141,10 +141,6 @@ def living_chain_concentration(
         return init * (((order - 1) * time + 1) ** (1 / (1 - order)))
 
 
-# Alias for backward compatibility with original code
-_b_val = living_chain_concentration
-
-
 def _nup_integrand(
     t: float,
     alpha: float,
@@ -217,8 +213,10 @@ def living_chain_dp(
 
     # Analytical solutions for bn = 1
     if order == 1:
-        return ((init_mon / alpha) * np.exp(-init / alpha) *
-                (expi(init / alpha) - expi(np.exp(-time) * init / alpha)))
+        # Suppress warnings for edge cases (very large time values)
+        with np.errstate(invalid='ignore'):
+            return ((init_mon / alpha) * np.exp(-init / alpha) *
+                    (expi(init / alpha) - expi(np.exp(-time) * init / alpha)))
 
     if order == 2:
         return ((init_mon / init / (alpha - 1)) *
@@ -296,7 +294,9 @@ def conversion_to_time(
     mon_frac = 1 - conversion
 
     if order == 1:
-        return -np.log((alpha / init) * np.log(mon_frac) + 1) * bn
+        # Suppress warnings for edge cases (conversion very close to 0 or 1)
+        with np.errstate(invalid='ignore'):
+            return -np.log((alpha / init) * np.log(mon_frac) + 1) * bn
     elif order == 2:
         return ((mon_frac ** -alpha) - 1) * bn
     else:

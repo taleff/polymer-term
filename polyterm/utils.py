@@ -9,12 +9,13 @@ import numpy as np
 from scipy.optimize import least_squares
 from typing import Tuple
 
-from .core.distributions import gaussian_broadening
+from .core.broadening import gaussian_broadening
 
 __all__ = [
     'calculate_number_average_dp',
     'fit_right_edge',
     'calculate_r_squared',
+    'prepare_fit_data',
 ]
 
 
@@ -66,11 +67,7 @@ def calculate_number_average_dp(
           np.trapezoid(number_intensities, molecular_weights))
 
     # Convert to DP
-    return mn / monomer_mw
-
-
-# Alias for backward compatibility
-nu_finder = calculate_number_average_dp
+    return float(mn / monomer_mw)
 
 
 def fit_right_edge(
@@ -152,10 +149,6 @@ def fit_right_edge(
     return nup, sigma
 
 
-# Alias for backward compatibility
-sec_right_edge_fit = fit_right_edge
-
-
 def calculate_r_squared(
     observed: np.ndarray,
     predicted: np.ndarray
@@ -212,5 +205,71 @@ def calculate_r_squared(
     return 1 - (ss_res / ss_tot)
 
 
-# Alias for backward compatibility
-corr_calc = calculate_r_squared
+def prepare_fit_data(
+    molecular_weights: np.ndarray,
+    intensities: np.ndarray,
+    max_points: int = 500
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Prepare MWD data for fitting.
+
+    Downsamples if needed and normalizes the distribution on log-MW scale
+    for efficient and stable optimization.
+
+    Parameters
+    ----------
+    molecular_weights : ndarray
+        Molecular weights from SEC/GPC measurement.
+    intensities : ndarray
+        Detector response at each molecular weight.
+    max_points : int, optional
+        Maximum number of points to use. If the input has more points,
+        uniform downsampling is applied. Default is 500.
+
+    Returns
+    -------
+    fit_mws : ndarray
+        Processed molecular weights (possibly downsampled).
+    fit_ints : ndarray
+        Normalized intensities on log-MW scale.
+
+    Raises
+    ------
+    ValueError
+        If arrays have different lengths or are empty.
+
+    Notes
+    -----
+    Normalization is performed such that the integral over log(MW) equals 1:
+        ∫ intensity d(log MW) = 1
+
+    This normalization is standard for SEC/GPC data comparison and fitting.
+
+    Examples
+    --------
+    >>> mws, ints = prepare_fit_data(raw_mws, raw_intensities, max_points=200)
+    >>> print(f"Reduced from {len(raw_mws)} to {len(mws)} points")
+    """
+    # Validate inputs
+    if len(molecular_weights) != len(intensities):
+        raise ValueError("molecular_weights and intensities must have same length")
+    if len(molecular_weights) == 0:
+        raise ValueError("Input arrays cannot be empty")
+
+    mws = np.asarray(molecular_weights)
+    ints = np.asarray(intensities)
+
+    # Downsample if needed
+    if len(mws) > max_points:
+        # Use uniform spacing in indices
+        indices = np.linspace(0, len(mws) - 1, max_points, dtype=int)
+        mws = mws[indices]
+        ints = ints[indices]
+
+    # Normalize on log scale: ∫ intensity d(log MW) = 1
+    log_mws = np.log(mws)
+    norm = np.trapezoid(ints, log_mws)
+    if norm > 0:
+        ints = ints / norm
+
+    return mws, ints

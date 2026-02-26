@@ -5,11 +5,11 @@ Tests for distribution calculation functions.
 import pytest
 import numpy as np
 from polyterm.core.distributions import (
-    gaussian_broadening,
     living_distribution_integrand,
     calculate_distribution,
     calculate_mwd,
 )
+from polyterm.core.broadening import gaussian_broadening
 
 
 class TestGaussianBroadening:

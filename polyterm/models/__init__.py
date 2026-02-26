@@ -5,15 +5,23 @@ This subpackage provides fitting models for determining termination kinetics
 from molecular weight distributions.
 """
 
-from .base import BaseModel, FitResult
-from .single_order import SingleOrderModel
-from .multi_order import MultiOrderModel
-from .global_fit import GlobalFitModel
+from .fitting import (
+    fit_mwd,
+    FitResult,
+    fit_living_peak,
+    LivingPeakResult,
+    estimate_living_fraction,
+    LivingFractionResult,
+)
+from .estimation import estimate_alpha
 
 __all__ = [
-    'BaseModel',
+    # Functional API (recommended)
+    'fit_mwd',
     'FitResult',
-    'SingleOrderModel',
-    'MultiOrderModel',
-    'GlobalFitModel',
+    'fit_living_peak',
+    'LivingPeakResult',
+    'estimate_living_fraction',
+    'LivingFractionResult',
+    'estimate_alpha',
 ]

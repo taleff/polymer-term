@@ -9,7 +9,7 @@ import numpy as np
 import warnings
 from scipy.stats import poisson
 from scipy.integrate import quad_vec
-from typing import Tuple, Optional, Union
+from typing import Tuple
 
 from .kinetics import (
     living_chain_concentration,
@@ -17,57 +17,75 @@ from .kinetics import (
     conversion_to_time,
     time_to_chain_death,
 )
+from .broadening import emg_broadening, egh_broadening
 
 __all__ = [
-    'gaussian_broadening',
+    'calculate_dp_range',
     'calculate_distribution',
     'calculate_mwd',
     'living_distribution_integrand',
 ]
 
 
-def gaussian_broadening(
+def calculate_dp_range(
     molecular_weights: np.ndarray,
-    center: Union[float, np.ndarray],
-    sigma: float
+    intensities: np.ndarray,
+    monomer_mw: float,
+    nu: float,
+    nup: float
 ) -> np.ndarray:
     """
-    Calculate Gaussian line broadening function for SEC/GPC.
+    Calculate intelligent DP range for distribution calculation.
 
-    Models the instrumental broadening effect in Size Exclusion Chromatography.
-    The broadening is Gaussian in log(molecular weight) space.
+    Determines an appropriate range of degrees of polymerization that
+    balances computational cost with coverage of the distribution mass.
 
     Parameters
     ----------
     molecular_weights : ndarray
-        Molecular weights at which to evaluate the broadening function.
-    center : float or ndarray
-        Center(s) of the Gaussian distribution(s), representing true
-        molecular weights.
-    sigma : float
-        Standard deviation in log(molecular weight) space. This parameter
-        characterizes the instrumental broadening of the SEC/GPC system.
+        Molecular weights from the experimental distribution.
+    intensities : ndarray
+        Intensity values at each molecular weight.
+    monomer_mw : float
+        Molecular weight of one monomer unit.
+    nu : float
+        Number average degree of polymerization.
+    nup : float
+        Peak degree of polymerization (living chain DP estimate).
 
     Returns
     -------
     ndarray
-        Normalized Gaussian broadening function values.
+        Array of integer DP values from 1 to max_dp.
 
     Notes
     -----
-    The function is normalized such that integration over all molecular
-    weights equals 1. The Gaussian is applied in log space: the center
-    parameter is the true average MW, but sigma describes broadening in
-    log(MW). The returned Gaussian is also applicable to SEC measurements
-    where the intensity of larger molecular weights are overrepresented
+    The maximum DP is calculated to cover >99.99% of distribution mass:
+    - For living chains: Poisson(nup) has most mass within 5*sqrt(nup)
+    - For dead chains: can extend to ~2*nup in worst case
+    - Conservative: 3*nup + 10*sqrt(nup)
+
+    The calculated max is bounded by the MW range of the data and
+    guaranteed to be at least 2*nu.
+
+    Examples
+    --------
+    >>> dps = calculate_dp_range(mws, intensities, monomer_mw=104, nu=80, nup=100)
+    >>> print(f"DP range: 1 to {len(dps)}")
     """
-    expon = -(np.log(molecular_weights) - np.log(center)) ** 2 / (2 * sigma ** 2)
-    coeff = np.sqrt(2 * np.pi) * sigma
-    return (1 / coeff) * np.exp(expon)
+    # For living chains: Poisson(nup) has most mass within 5*sqrt(nup)
+    # For dead chains: can extend to ~2*nup in worst case (high termination)
+    # Conservative: cover >99.99% of distribution mass
+    intelligent_max_dp = int(3 * nup + 10 * np.sqrt(nup))
 
+    # Don't exceed original maximum, and ensure at least 2x number average
+    max_mw_based_dp = int(np.max(molecular_weights) / monomer_mw)
+    max_dp = max(
+        min(intelligent_max_dp, max_mw_based_dp),
+        int(2 * nu)
+    )
 
-# Alias for consistency with original code
-_gaussian = gaussian_broadening
+    return np.arange(1, max_dp, dtype=int)
 
 
 def living_distribution_integrand(
@@ -128,10 +146,6 @@ def living_distribution_integrand(
                 poisson.pmf(dps, 2 * nup) / 2)
 
     return (b ** order) * (init ** (1 - order)) * poisson.pmf(dps, nup)
-
-
-# Alias for backward compatibility
-_living_dist = living_distribution_integrand
 
 
 def calculate_distribution(
@@ -211,10 +225,6 @@ def calculate_distribution(
     return np.array(alive_fracs), np.array(dead_fracs)
 
 
-# Alias for backward compatibility
-dist = calculate_distribution
-
-
 def calculate_mwd(
     molecular_weights: np.ndarray,
     monomer_mw: float,
@@ -224,6 +234,7 @@ def calculate_mwd(
     init: float,
     order: float,
     sigma: float,
+    tau: float = 0,
     combination: bool = False,
     bn: float = 1.0,
     live_only: bool = False
@@ -254,6 +265,9 @@ def calculate_mwd(
         Order of termination reaction.
     sigma : float
         SEC line broadening parameter (std dev in log MW space).
+    sigma : float
+        SEC line broadening parameter for lower molecular weight tail
+        (used for exponentially modified Gaussian broadening)
     combination : bool, optional
         Whether termination occurs by combination. Default is False.
     bn : float, optional
@@ -313,7 +327,7 @@ def calculate_mwd(
 
     # Create meshgrid for broadening calculation
     dps_mesh, mws_mesh = np.meshgrid(dps, molecular_weights)
-    broadenings = gaussian_broadening(mws_mesh, dps_mesh * monomer_mw, sigma)
+    broadenings = egh_broadening(mws_mesh, dps_mesh * monomer_mw, sigma, tau)
     
     # Convert to weight distribution
     tot_dist = (pred_dist[0] + pred_dist[1]) * dps
@@ -330,7 +344,3 @@ def calculate_mwd(
     mwd = raw_mwd / np.trapezoid(raw_mwd, molecular_weights)
 
     return mwd
-
-
-# Alias for backward compatibility
-mwd = calculate_mwd

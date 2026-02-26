@@ -7,7 +7,6 @@ interface for working with polymer molecular weight distributions.
 
 import numpy as np
 import warnings
-from typing import Optional
 from dataclasses import dataclass
 
 from .core.distributions import calculate_mwd
@@ -172,6 +171,7 @@ class MolecularWeightDistribution:
         init: float,
         order: float,
         sigma: float,
+        tau: float = 0,
         combination: bool = False,
         bn: float = 1.0
     ) -> 'MolecularWeightDistribution':
@@ -199,6 +199,9 @@ class MolecularWeightDistribution:
             Order of the termination reaction.
         sigma : float
             SEC line broadening parameter (std dev in log MW space).
+        tau : float
+            SEC line broadening tailing parameter (used for exponentially
+            modified Gaussians)
         combination : bool, optional
             Whether termination occurs by chain combination. Default False.
         bn : float, optional
@@ -234,6 +237,7 @@ class MolecularWeightDistribution:
             init=init,
             order=order,
             sigma=sigma,
+            tau=tau,
             combination=combination,
             bn=bn,
             live_only=False
@@ -289,17 +293,17 @@ class MolecularWeightDistribution:
         For a weight distribution w(M), Mw = ∫ M·w(M) dM / ∫ w(M) dM
         """
         if self.is_normalized:
-            return np.trapezoid(
+            return float(np.trapezoid(
                 self.molecular_weights * self.intensities,
                 self.molecular_weights
-            )
+            ))
         else:
             numerator = np.trapezoid(
                 self.molecular_weights * self.intensities,
                 self.molecular_weights
             )
             denominator = np.trapezoid(self.intensities, self.molecular_weights)
-            return numerator / denominator if denominator > 0 else 0.0
+            return float(numerator / denominator if denominator > 0 else 0.0)
 
     @property
     def dispersity(self) -> float:

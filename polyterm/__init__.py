@@ -13,39 +13,39 @@ units.
 Basic Usage
 -----------
 
-Create a molecular weight distribution from experimental data:
+Fit termination kinetics using the functional API:
 
->>> from polyterm import MolecularWeightDistribution
->>> mwd = MolecularWeightDistribution.from_data(
-...     molecular_weights=mw_array,
-...     intensities=intensity_array,
-...     monomer_mw=104.15
-... )
-
-Fit termination kinetics to the distribution:
-
->>> from polyterm import SingleOrderModel
->>> model = SingleOrderModel(
-...     monomer_mw=104.15,
-...     init_mon=1.0,
-...     order=1.5
-... )
->>> result = model.fit(mwd)
->>> print(f"α (kt/kp) = {result.alpha:.4f}")
->>> print(f"R² = {result.r_squared:.4f}")
-
-Generate a theoretical distribution:
-
->>> mwd_theory = MolecularWeightDistribution.from_kinetics(
-...     molecular_weights=np.logspace(3, 6, 500),
-...     monomer_mw=104.15,
-...     nu=50.0,
-...     alpha=0.01,
-...     init_mon=1.0,
-...     init=0.02,
+>>> from polyterm import fit_mwd
+>>> result = fit_mwd(
+...     molecular_weights, intensities,
 ...     order=1.5,
+...     monomer_mw=104.15,
+...     init_mon=1.0
+... )
+>>> print(f"alpha (kt/kp) = {result.alpha:.4f}")
+>>> print(f"R^2 = {result.r_squared:.4f}")
+
+With calibrated broadening parameters:
+
+>>> result = fit_mwd(
+...     molecular_weights, intensities,
+...     order=1.5,
+...     monomer_mw=104.15,
+...     init_mon=1.0,
+...     sigma=0.05,
+...     tau=0.02
+... )
+
+Batch processing with functools.partial:
+
+>>> from functools import partial
+>>> fit_my_instrument = partial(
+...     fit_mwd,
+...     monomer_mw=104.15,
+...     init_mon=1.0,
 ...     sigma=0.05
 ... )
+>>> results = [fit_my_instrument(mws, ints, order=1.5) for mws, ints in samples]
 
 Modules
 -------
@@ -53,20 +53,33 @@ core : Core kinetic and distribution calculations
 models : Fitting models for kinetic parameter determination
 utils : Utility functions for data analysis
 
+Functions
+---------
+fit_mwd : Fit kinetic model to molecular weight distribution (recommended)
+
 Classes
 -------
 MolecularWeightDistribution : Container for MWD data
-SingleOrderModel : Main fitting model (single termination order)
 FitResult : Container for fitting results
 """
 
 from ._version import __version__
 
-# Main user-facing classes
+# Main user-facing classes and functions
 from .mwd import MolecularWeightDistribution
 from .models import (
-    SingleOrderModel,
+    fit_mwd,
     FitResult,
+    fit_living_peak,
+    LivingPeakResult,
+    estimate_living_fraction,
+    LivingFractionResult,
+)
+from .calibration import (
+    calibrate_emg_broadening,
+    calibrate_egh_broadening,
+    EMGCalibrationResult,
+    EGHCalibrationResult,
 )
 
 # Utility functions
@@ -89,10 +102,19 @@ from .core import (
 __all__ = [
     # Version
     '__version__',
-    # Main classes
-    'MolecularWeightDistribution',
-    'SingleOrderModel',
+    # Main API (recommended)
+    'fit_mwd',
     'FitResult',
+    'fit_living_peak',
+    'LivingPeakResult',
+    'estimate_living_fraction',
+    'LivingFractionResult',
+    'MolecularWeightDistribution',
+    # Calibration
+    'calibrate_emg_broadening',
+    'calibrate_egh_broadening',
+    'EMGCalibrationResult',
+    'EGHCalibrationResult',
     # Utilities
     'calculate_number_average_dp',
     'fit_right_edge',

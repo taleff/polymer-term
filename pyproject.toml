@@ -51,6 +51,7 @@ Repository = "https://github.com/yourusername/polyterm"
 
 [tool.setuptools]
 packages = ["polyterm", "polyterm.core", "polyterm.models"]
+# Note: calibration.py is now included in the main polyterm package
 
 [tool.setuptools.package-data]
 polyterm = ["py.typed"]

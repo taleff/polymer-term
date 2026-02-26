@@ -15,10 +15,17 @@ from .kinetics import (
 )
 
 from .distributions import (
-    gaussian_broadening,
+    calculate_dp_range,
     calculate_distribution,
     calculate_mwd,
     living_distribution_integrand,
+)
+
+from .broadening import (
+    gaussian_broadening,
+    emg_broadening,
+    egh_broadening,
+    compute_broadening_matrix,
 )
 
 __all__ = [
@@ -28,8 +35,13 @@ __all__ = [
     'living_chain_dp',
     'conversion_to_time',
     'time_to_chain_death',
-    # Distributions
+    # Broadening
     'gaussian_broadening',
+    'emg_broadening',
+    'egh_broadening',
+    'compute_broadening_matrix',
+    # Distributions
+    'calculate_dp_range',
     'calculate_distribution',
     'calculate_mwd',
     'living_distribution_integrand',
