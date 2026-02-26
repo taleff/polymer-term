@@ -111,6 +111,55 @@ def _precompute_poisson_matrix(
     return poisson_matrix
 
 
+def _compute_dead_fracs_quadrature(
+    times: np.ndarray,
+    weights: np.ndarray,
+    poisson_matrix: np.ndarray,
+    init: float,
+    order: float,
+    combination: bool
+) -> np.ndarray:
+    """
+    Compute dead chain fractions using fixed quadrature.
+
+    Parameters
+    ----------
+    times : ndarray
+        Quadrature time points.
+    weights : ndarray
+        Quadrature weights.
+    poisson_matrix : ndarray, shape (n_times, n_dps)
+        Precomputed Poisson PMFs.
+    init : float
+        Initial initiator concentration.
+    order : float
+        Termination order.
+    combination : bool
+        Whether termination is by combination.
+
+    Returns
+    -------
+    dead_fracs : ndarray, shape (n_dps,)
+        Mole fraction of dead chains at each DP.
+    """
+    # Compute b(t) at each time point
+    b_vals = np.array([
+        living_chain_concentration(init, order, t) for t in times
+    ])
+
+    # Compute integrand weights: (b^order) * (init^(1-order))
+    integrand_weights = (b_vals ** order) * (init ** (1 - order))
+
+    # For combination termination, divide by 2
+    if combination:
+        integrand_weights = integrand_weights / 2
+
+    # Weighted sum: (n_times,) @ (n_times, n_dps) -> (n_dps,)
+    dead_fracs = (weights * integrand_weights) @ poisson_matrix
+
+    return dead_fracs
+
+
 __all__ = [
     'fit_mwd',
     'FitResult',

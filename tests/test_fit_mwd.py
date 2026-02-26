@@ -8,7 +8,11 @@ from functools import partial
 
 from polyterm import fit_mwd, FitResult
 from polyterm.core.distributions import calculate_mwd
-from polyterm.models.fitting import _get_quadrature_points, _precompute_poisson_matrix
+from polyterm.models.fitting import (
+    _get_quadrature_points,
+    _precompute_poisson_matrix,
+    _compute_dead_fracs_quadrature,
+)
 
 
 class TestQuadratureHelper:
@@ -104,6 +108,80 @@ class TestPoissonPrecomputation:
         )
 
         assert np.all(matrix >= 0)
+
+
+class TestDeadFracsQuadrature:
+    """Test the fixed quadrature dead fraction computation."""
+
+    def test_returns_correct_shape(self):
+        """Test that dead fractions have correct shape."""
+        n_points = 50
+        time_end = 5.0
+        dps = np.arange(1, 200)
+        alpha = 0.002
+        init_mon = 1.0
+        init = 0.005
+        order = 1.5
+        bn = 1.0
+        combination = False
+
+        times, weights = _get_quadrature_points(n_points, time_end)
+        poisson_matrix = _precompute_poisson_matrix(
+            times, dps, alpha, init_mon, init, order, bn
+        )
+
+        dead_fracs = _compute_dead_fracs_quadrature(
+            times, weights, poisson_matrix, init, order, combination
+        )
+
+        assert dead_fracs.shape == (len(dps),)
+
+    def test_values_are_nonnegative(self):
+        """Test that dead fractions are non-negative."""
+        n_points = 50
+        time_end = 5.0
+        dps = np.arange(1, 200)
+        alpha = 0.002
+        init_mon = 1.0
+        init = 0.005
+        order = 1.5
+        bn = 1.0
+        combination = False
+
+        times, weights = _get_quadrature_points(n_points, time_end)
+        poisson_matrix = _precompute_poisson_matrix(
+            times, dps, alpha, init_mon, init, order, bn
+        )
+
+        dead_fracs = _compute_dead_fracs_quadrature(
+            times, weights, poisson_matrix, init, order, combination
+        )
+
+        assert np.all(dead_fracs >= 0)
+
+    def test_sum_is_reasonable(self):
+        """Test that total dead fraction is between 0 and init."""
+        n_points = 50
+        time_end = 5.0
+        dps = np.arange(1, 500)
+        alpha = 0.002
+        init_mon = 1.0
+        init = 0.005
+        order = 1.5
+        bn = 1.0
+        combination = False
+
+        times, weights = _get_quadrature_points(n_points, time_end)
+        poisson_matrix = _precompute_poisson_matrix(
+            times, dps, alpha, init_mon, init, order, bn
+        )
+
+        dead_fracs = _compute_dead_fracs_quadrature(
+            times, weights, poisson_matrix, init, order, combination
+        )
+
+        total_dead = np.sum(dead_fracs)
+        assert 0 < total_dead < init
 
 
 class TestFitMwdValidation:
