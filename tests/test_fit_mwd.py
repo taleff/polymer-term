@@ -8,7 +8,7 @@ from functools import partial
 
 from polyterm import fit_mwd, FitResult
 from polyterm.core.distributions import calculate_mwd
-from polyterm.models.fitting import _get_quadrature_points
+from polyterm.models.fitting import _get_quadrature_points, _precompute_poisson_matrix
 
 
 class TestQuadratureHelper:
@@ -51,6 +51,59 @@ class TestQuadratureHelper:
         expected = (time_end ** 3) / 3
 
         assert np.isclose(integral, expected, rtol=1e-10)
+
+
+class TestPoissonPrecomputation:
+    """Test the Poisson precomputation function."""
+
+    def test_returns_correct_shape(self):
+        """Test that precomputed matrix has correct shape."""
+        times = np.array([0.1, 0.5, 1.0, 2.0])
+        dps = np.arange(1, 100)
+        alpha = 0.002
+        init_mon = 1.0
+        init = 0.005
+        order = 1.5
+        bn = 1.0
+
+        matrix = _precompute_poisson_matrix(
+            times, dps, alpha, init_mon, init, order, bn
+        )
+
+        assert matrix.shape == (len(times), len(dps))
+
+    def test_rows_sum_approximately_to_one(self):
+        """Test that each row sums to approximately 1 (Poisson normalization)."""
+        times = np.array([0.1, 0.5, 1.0])
+        dps = np.arange(1, 500)  # Wide range to capture most probability mass
+        alpha = 0.002
+        init_mon = 1.0
+        init = 0.005
+        order = 1.5
+        bn = 1.0
+
+        matrix = _precompute_poisson_matrix(
+            times, dps, alpha, init_mon, init, order, bn
+        )
+
+        row_sums = np.sum(matrix, axis=1)
+        assert np.all(row_sums > 0.99)  # Allow some truncation
+
+    def test_values_are_nonnegative(self):
+        """Test that all Poisson probabilities are non-negative."""
+        times = np.array([0.1, 1.0, 5.0])
+        dps = np.arange(1, 200)
+        alpha = 0.002
+        init_mon = 1.0
+        init = 0.005
+        order = 1.5
+        bn = 1.0
+
+        matrix = _precompute_poisson_matrix(
+            times, dps, alpha, init_mon, init, order, bn
+        )
+
+        assert np.all(matrix >= 0)
 
 
 class TestFitMwdValidation:

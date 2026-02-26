@@ -65,6 +65,52 @@ def _get_quadrature_points(n_points: int, time_end: float) -> tuple:
     return scaled_nodes, scaled_weights
 
 
+def _precompute_poisson_matrix(
+    times: np.ndarray,
+    dps: np.ndarray,
+    alpha: float,
+    init_mon: float,
+    init: float,
+    order: float,
+    bn: float
+) -> np.ndarray:
+    """
+    Precompute Poisson PMFs at all quadrature time points.
+
+    Parameters
+    ----------
+    times : ndarray
+        Quadrature time points.
+    dps : ndarray
+        Degrees of polymerization.
+    alpha : float
+        Ratio kt/kp.
+    init_mon : float
+        Initial monomer concentration.
+    init : float
+        Initial initiator concentration.
+    order : float
+        Termination order.
+    bn : float
+        Inverse propagation order.
+
+    Returns
+    -------
+    poisson_matrix : ndarray, shape (n_times, n_dps)
+        poisson_matrix[i, j] = poisson.pmf(dps[j], nup(times[i]))
+    """
+    # Compute nup at each time point
+    nups = np.array([
+        living_chain_dp(alpha, init_mon, init, order, t, bn)
+        for t in times
+    ])
+
+    # Vectorized Poisson computation: shape (n_times, n_dps)
+    poisson_matrix = poisson.pmf(dps[np.newaxis, :], nups[:, np.newaxis])
+
+    return poisson_matrix
+
+
 __all__ = [
     'fit_mwd',
     'FitResult',
