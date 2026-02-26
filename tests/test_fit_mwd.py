@@ -6,8 +6,10 @@ import pytest
 import numpy as np
 from functools import partial
 
+from scipy.integrate import quad_vec
+
 from polyterm import fit_mwd, FitResult
-from polyterm.core.distributions import calculate_mwd
+from polyterm.core.distributions import calculate_mwd, living_distribution_integrand
 from polyterm.models.fitting import (
     _get_quadrature_points,
     _precompute_poisson_matrix,
@@ -182,6 +184,110 @@ class TestDeadFracsQuadrature:
 
         total_dead = np.sum(dead_fracs)
         assert 0 < total_dead < init
+
+
+class TestQuadratureAccuracy:
+    """Test that fixed quadrature matches quad_vec accuracy.
+
+    These tests verify that the fixed Gauss-Legendre quadrature produces
+    results equivalent to scipy's adaptive quad_vec within 1% relative error.
+    Different termination orders require different numbers of quadrature points
+    due to varying integrand smoothness.
+    """
+
+    def test_matches_quad_vec_order_1(self):
+        """Test fixed quadrature matches quad_vec for order=1."""
+        dps = np.arange(1, 300)
+        alpha = 0.002
+        init_mon = 1.0
+        init = 0.005
+        order = 1.0
+        bn = 1.0
+        time_end = 5.0
+        combination = False
+
+        # Reference: quad_vec
+        args = (dps, alpha, init_mon, init, order, combination, bn)
+        ref_dead_fracs, _ = quad_vec(
+            living_distribution_integrand, 0, time_end, args=args
+        )
+
+        # Fixed quadrature with 100 points for 1% accuracy (sufficient for order=1)
+        times, weights = _get_quadrature_points(100, time_end)
+        poisson_matrix = _precompute_poisson_matrix(
+            times, dps, alpha, init_mon, init, order, bn
+        )
+        test_dead_fracs = _compute_dead_fracs_quadrature(
+            times, weights, poisson_matrix, init, order, combination
+        )
+
+        # Should match within 1%
+        relative_error = np.abs(test_dead_fracs - ref_dead_fracs) / (ref_dead_fracs + 1e-15)
+        significant = ref_dead_fracs > 1e-10
+        assert np.all(relative_error[significant] < 0.01)
+
+    def test_matches_quad_vec_order_1_5(self):
+        """Test fixed quadrature matches quad_vec for order=1.5."""
+        dps = np.arange(1, 300)
+        alpha = 0.002
+        init_mon = 1.0
+        init = 0.005
+        order = 1.5
+        bn = 1.0
+        time_end = 5.0
+        combination = False
+
+        # Reference: quad_vec
+        args = (dps, alpha, init_mon, init, order, combination, bn)
+        ref_dead_fracs, _ = quad_vec(
+            living_distribution_integrand, 0, time_end, args=args
+        )
+
+        # Fixed quadrature with 400 points for 1% accuracy
+        # Fractional orders require more points due to integrand complexity
+        times, weights = _get_quadrature_points(400, time_end)
+        poisson_matrix = _precompute_poisson_matrix(
+            times, dps, alpha, init_mon, init, order, bn
+        )
+        test_dead_fracs = _compute_dead_fracs_quadrature(
+            times, weights, poisson_matrix, init, order, combination
+        )
+
+        # Should match within 1%
+        relative_error = np.abs(test_dead_fracs - ref_dead_fracs) / (ref_dead_fracs + 1e-15)
+        significant = ref_dead_fracs > 1e-10
+        assert np.all(relative_error[significant] < 0.01)
+
+    def test_matches_quad_vec_order_2(self):
+        """Test fixed quadrature matches quad_vec for order=2."""
+        dps = np.arange(1, 300)
+        alpha = 0.5
+        init_mon = 1.0
+        init = 0.005
+        order = 2.0
+        bn = 1.0
+        time_end = 5.0
+        combination = False
+
+        # Reference: quad_vec
+        args = (dps, alpha, init_mon, init, order, combination, bn)
+        ref_dead_fracs, _ = quad_vec(
+            living_distribution_integrand, 0, time_end, args=args
+        )
+
+        # Fixed quadrature with 100 points for 1% accuracy
+        times, weights = _get_quadrature_points(100, time_end)
+        poisson_matrix = _precompute_poisson_matrix(
+            times, dps, alpha, init_mon, init, order, bn
+        )
+        test_dead_fracs = _compute_dead_fracs_quadrature(
+            times, weights, poisson_matrix, init, order, combination
+        )
+
+        # Should match within 1%
+        relative_error = np.abs(test_dead_fracs - ref_dead_fracs) / (ref_dead_fracs + 1e-15)
+        significant = ref_dead_fracs > 1e-10
+        assert np.all(relative_error[significant] < 0.01)
 
 
 class TestFitMwdValidation:
