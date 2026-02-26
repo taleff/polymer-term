@@ -10,7 +10,6 @@ from dataclasses import dataclass
 
 import numpy as np
 from scipy.stats import poisson
-from scipy.integrate import quad_vec
 from scipy.optimize import minimize, least_squares
 from scipy.sparse.linalg import LinearOperator
 
@@ -24,7 +23,6 @@ from ..core.kinetics import (
 from ..core.distributions import (
     calculate_dp_range,
     calculate_mwd,
-    living_distribution_integrand,
 )
 from ..core.broadening import (
     compute_broadening_matrix,
@@ -107,6 +105,55 @@ def _precompute_poisson_matrix(
 
     # Vectorized Poisson computation: shape (n_times, n_dps)
     poisson_matrix = poisson.pmf(dps[np.newaxis, :], nups[:, np.newaxis])
+
+    return poisson_matrix
+
+
+def _precompute_poisson_matrix_combination(
+    times: np.ndarray,
+    dps: np.ndarray,
+    alpha: float,
+    init_mon: float,
+    init: float,
+    order: float,
+    bn: float
+) -> np.ndarray:
+    """
+    Precompute Poisson PMFs for combination termination (2*nup).
+
+    Same as _precompute_poisson_matrix but uses 2*nup for the Poisson
+    parameter, as combination termination produces chains with ~2x the DP.
+
+    Parameters
+    ----------
+    times : ndarray
+        Quadrature time points.
+    dps : ndarray
+        Degrees of polymerization.
+    alpha : float
+        Ratio kt/kp.
+    init_mon : float
+        Initial monomer concentration.
+    init : float
+        Initial initiator concentration.
+    order : float
+        Termination order.
+    bn : float
+        Inverse propagation order.
+
+    Returns
+    -------
+    poisson_matrix : ndarray, shape (n_times, n_dps)
+        poisson_matrix[i, j] = poisson.pmf(dps[j], 2*nup(times[i]))
+    """
+    # Compute nup at each time point
+    nups = np.array([
+        living_chain_dp(alpha, init_mon, init, order, t, bn)
+        for t in times
+    ])
+
+    # Use 2*nup for combination termination
+    poisson_matrix = poisson.pmf(dps[np.newaxis, :], 2 * nups[:, np.newaxis])
 
     return poisson_matrix
 
@@ -1121,12 +1168,46 @@ def _calculate_mwd_internal(
     combination: bool,
     bn: float,
     time: Optional[float] = None,
-    conv: Optional[float] = None
+    conv: Optional[float] = None,
+    n_quadrature_points: int = 100
 ) -> np.ndarray:
     """
     Calculate MWD given either time or conversion.
 
-    Internal function used during optimization.
+    Internal function used during optimization. Uses fixed Gauss-Legendre
+    quadrature with precomputed Poisson distributions for efficiency.
+
+    Parameters
+    ----------
+    alpha : float
+        Ratio kt/kp.
+    init : float
+        Initial initiator concentration.
+    dps : ndarray
+        Degrees of polymerization.
+    mws : ndarray
+        Molecular weights for output.
+    broadenings : ndarray
+        Broadening matrix.
+    init_mon : float
+        Initial monomer concentration.
+    order : float
+        Termination order.
+    combination : bool
+        Whether termination is by combination.
+    bn : float
+        Inverse propagation order.
+    time : float, optional
+        Reduced time (if known).
+    conv : float, optional
+        Conversion (if time not known).
+    n_quadrature_points : int, optional
+        Number of Gauss-Legendre quadrature points. Default 100.
+
+    Returns
+    -------
+    ndarray
+        Normalized MWD at the specified molecular weights.
     """
     # Guard against invalid parameters
     if not (np.isfinite(alpha) and np.isfinite(init)):
@@ -1148,14 +1229,28 @@ def _calculate_mwd_internal(
     if not np.isfinite(time) or time < 0:
         return np.full(len(mws), np.nan)
 
-    # Calculate distribution
-    args = (dps, alpha, init_mon, init, order, combination, bn)
-    dead_fracs, _ = quad_vec(living_distribution_integrand, 0, time,
-                              args=args, limit=100)
+    # Fixed quadrature: precompute Poisson distributions
+    quad_times, quad_weights = _get_quadrature_points(n_quadrature_points, time)
 
+    # Handle combination termination: need 2*nup for dead chains
+    if combination:
+        poisson_matrix = _precompute_poisson_matrix_combination(
+            quad_times, dps, alpha, init_mon, init, order, bn
+        )
+    else:
+        poisson_matrix = _precompute_poisson_matrix(
+            quad_times, dps, alpha, init_mon, init, order, bn
+        )
+
+    dead_fracs = _compute_dead_fracs_quadrature(
+        quad_times, quad_weights, poisson_matrix, init, order, combination
+    )
+
+    # Living chains at final time
     b = living_chain_concentration(init, order, time)
     nup = living_chain_dp(alpha, init_mon, init, order, time, bn)
     alive_fracs = b * poisson.pmf(dps, nup)
+
     total_fracs = alive_fracs + dead_fracs
 
     pred_mwd = np.matmul(broadenings, total_fracs * dps)
