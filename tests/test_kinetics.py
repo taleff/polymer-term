@@ -11,7 +11,6 @@ from polyterm.core.kinetics import (
     conversion_to_time,
     time_to_chain_death,
 )
-from polyterm.core.distributions import calculate_mwd
 
 
 class TestLivingChainConcentration:

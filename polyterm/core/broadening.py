@@ -111,8 +111,9 @@ def emg_broadening(
     >>> mws = np.logspace(3, 5, 500)
     >>> emg = emg_broadening(mws, center=10000.0, sigma=0.10, tau=0.05)
     """
-    # If tau is effectively zero, use Gaussian
-    if tau <= 1e-10:
+    # If tau is effectively zero or too small relative to sigma, use Gaussian
+    # When sigma²/(2τ²) > ~700, exp() overflows, so use tau < sigma/37 as cutoff
+    if tau <= 1e-10 or tau < sigma / 37:
         return gaussian_broadening(molecular_weights, center, sigma)
 
     # Work in log space
@@ -295,3 +296,4 @@ def compute_broadening_matrix(
     if tau is None or tau <= 0:
         return gaussian_broadening(mws_mesh, true_mws, sigma)
     return egh_broadening(mws_mesh, true_mws, sigma, tau)
+

@@ -4,7 +4,7 @@ Tests for calibrate_egh_broadening function.
 
 import pytest
 import numpy as np
-from polyterm.calibration import calibrate_egh_broadening, EGHCalibrationResult
+from polyterm.calibration import calibrate_egh_broadening, CalibrationResult
 from polyterm.core.broadening import egh_broadening
 
 
@@ -52,13 +52,13 @@ class TestCalibrateEghBroadening:
         }
 
     def test_returns_calibration_result(self, narrow_standard_gaussian):
-        """calibrate_egh_broadening should return an EGHCalibrationResult."""
+        """calibrate_egh_broadening should return a CalibrationResult."""
         result = calibrate_egh_broadening(
             narrow_standard_gaussian['mws'],
             narrow_standard_gaussian['intensities']
         )
 
-        assert isinstance(result, EGHCalibrationResult)
+        assert isinstance(result, CalibrationResult)
 
     def test_result_has_sigma_and_tau(self, narrow_standard_gaussian):
         """Result should have sigma and tau attributes."""
@@ -142,12 +142,12 @@ class TestCalibrateEghBroadening:
         assert np.isclose(result.center, narrow_standard_gaussian['center'], rtol=0.1)
 
 
-class TestEGHCalibrationResult:
-    """Test EGHCalibrationResult dataclass."""
+class TestCalibrationResult:
+    """Test CalibrationResult dataclass."""
 
     def test_result_is_immutable(self):
-        """EGHCalibrationResult should be immutable (frozen dataclass)."""
-        result = EGHCalibrationResult(
+        """CalibrationResult should be immutable (frozen dataclass)."""
+        result = CalibrationResult(
             sigma=0.10,
             tau=0.05,
             center=10000.0,
@@ -159,7 +159,7 @@ class TestEGHCalibrationResult:
 
     def test_result_repr(self):
         """Result should have meaningful string representation."""
-        result = EGHCalibrationResult(
+        result = CalibrationResult(
             sigma=0.10,
             tau=0.05,
             center=10000.0,

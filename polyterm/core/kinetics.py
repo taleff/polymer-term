@@ -219,6 +219,10 @@ def living_chain_dp(
                     (expi(init / alpha) - expi(np.exp(-time) * init / alpha)))
 
     if order == 2:
+        # Handle singularity at alpha = 1
+        # Limit as alpha -> 1: nu = (init_mon / init) * ln(1 + time)
+        if np.isclose(alpha, 1.0, rtol=1e-6):
+            return (init_mon / init) * np.log(1 + time)
         return ((init_mon / init / (alpha - 1)) *
                 ((1 + time) ** ((alpha - 1) / alpha) - 1))
 

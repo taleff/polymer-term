@@ -4,7 +4,7 @@ Shared pytest fixtures for all tests.
 
 import pytest
 import numpy as np
-from polyterm import MolecularWeightDistribution
+from polyterm import calculate_mwd
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def standard_params():
     """Standard kinetic parameters for MWD generation."""
     return {
         "monomer_mw": 100.0,
-        "nu": 100.0,
+        "conversion": 0.5,
         "alpha": 0.002,
         "init_mon": 1.0,
         "init": 0.005,
@@ -32,7 +32,7 @@ def first_order_params():
     """First order kinetic parameters for MWD generation."""
     return {
         "monomer_mw": 100.15,
-        "nu": 500.0,
+        "conversion": 0.5,
         "alpha": 0.0005,
         "init_mon": 1.0,
         "init": 0.001,
@@ -46,7 +46,7 @@ def second_order_params():
     """Second order kinetic parameters for MWD generation."""
     return {
         "monomer_mw": 100.15,
-        "nu": 500.0,
+        "conversion": 0.5,
         "alpha": 0.5,
         "init_mon": 1.0,
         "init": 0.001,
@@ -61,7 +61,7 @@ def other_order_params():
     """Other order kinetic parameters for MWD generation."""
     return {
         "monomer_mw": 100.15,
-        "nu": 500.0,
+        "conversion": 0.5,
         "alpha": 0.0005,
         "init_mon": 1.0,
         "init": 0.001,
@@ -72,8 +72,8 @@ def other_order_params():
 
 @pytest.fixture
 def synthetic_mwd(simple_mws, standard_params):
-    """A synthetic MWD object for testing properties and methods."""
-    return MolecularWeightDistribution.from_kinetics(
+    """A synthetic MWD result for testing properties and methods."""
+    return calculate_mwd(
         molecular_weights=simple_mws,
         **standard_params
     )

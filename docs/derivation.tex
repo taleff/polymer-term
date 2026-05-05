@@ -1,0 +1,290 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{float}
+
+\begin{document}
+\section*{Termination in Living Polymerizations}
+Let's consider a generic living polymerization reaction. In this living polymerization, each chain sequentially adds monomer from solutions, growing the chains and consuming monomer.
+\begin{equation}
+  P_i^*+M\rightarrow P_{i+1}^*
+\end{equation}
+Now, let's consider a termination reaction that is simultaneously occuring during the polymerization. For now, we can treat this termination reaction as simply capping the chain end and nothing else. This reaction can be represented by a general reaction equation.
+\begin{equation}
+  nP_i^*\rightarrow nP_{i}
+\end{equation}
+It is well known that for a truly living polymerization, where the rate constant of termination $k_t$ is zero, the molecular weight distribution of the polymers follows a Poisson distribution.
+\begin{equation}
+  x_i=\frac{\bar{\nu}^{i-1}e^{-\bar{\nu}}}{(i-1)!}
+\end{equation}
+\section*{Monomer Conversion Derivation}
+From our polymerization rate equation, we can also write a rate law that describes the rate of polymerization. To get the total rate of polymerization, we can sum all the chains of different lengths by invoking the principle of equal reactivity (the principle that the length of a chain does not influence its polymerization rate).
+\begin{equation}
+  r_p(t)=-\frac{d[M]}{dt}=k_p[M]\sum_i[P_i]^*
+\end{equation}
+The rate law of termination can similarly be derived from the rate law equation we derived.
+\begin{equation}
+  r_t(t)=-\frac{d\sum_i[P_i^*]}{dt}=k_t\left(\sum_i[P_i]^*\right)^n
+\end{equation}
+We can solve for the total number of living chains by solving the differential equation for the rate of termination. Depending on the order of the termination reaction, we get different solutions for the number of living chains with respect to time.
+\begin{equation}
+  \sum_i[P_i^*]=\begin{cases}
+                  [I]_0e^{-k_tt} & n=1\\
+                  \left((n-1)k_tt+[I]_0^{1-n}\right)^{\frac{1}{1-n}} & n\neq 1
+                \end{cases}
+\end{equation}
+Let's first start with the case where the termination rate is first order, (i.e. $n=1$). Substituting in our expression for the number of living chain ends gives us an ordinary differential equation.
+\begin{equation}
+  -\frac{d[M]}{dt}=k_p[M][I]_0e^{-k_tt}
+\end{equation}
+Solving this differential equation gives us the following expression for the change in monomer concentration over time.
+\begin{equation}
+  [M]=[M]_0e^{\frac{k_p}{k_t}[I]_0\left(e^{-k_tt}-1\right)}
+\end{equation}
+\section*{Deriving the MWD for First Order Deactivation}
+Now, let's find the rate law for each individual chain length using our first order assumption, starting with the DP 1 chain, which is a special case. Let's also define $\alpha=k_t/k_p$.
+\begin{equation}
+  \frac{d[P_1^*]}{d[M]} = \frac{d[P_1^*]}{dt}\frac{d[t]}{d[M]}=\left(-k_p[P_1^*][M]-k_t[P_1^*]\right)\left(-\frac{1}{k_p[M][I]_0e^{-k_tt}}\right)
+\end{equation}
+If we look back to our monomer conversion expression, we can algebraically rearrange it to find an expression for $t$ in terms of the conversion of monomer.
+\begin{equation}
+  e^{-k_tt}=\frac{\alpha}{[I]_0}\ln\left(\frac{[M]}{[M]_0}\right)+1
+\end{equation}
+Substituting this into our differential equation gives us a new expression.
+\begin{equation}
+  \frac{d[P_1^*]}{d[M]} = \frac{[M]+\alpha}{[M]\left(\alpha\ln\left(\frac{[M]}{[M]_0}\right)+[I]_0\right)}[P_1^*]
+\end{equation}
+We can solve this differential equation to get the concentration of $P_1^*$. This solution was found using Mathematica.
+\begin{equation}
+  \begin{split}
+    [P_1^*]= & \left(\alpha\ln\left(\frac{[M]}{[M]_0}\right)+[I]_0\right) \\
+    & \exp\left(-\frac{[M]_0}{\alpha}\exp\left(-\frac{[I]_0}{\alpha}\right)\left(\text{Ei}\left(\frac{[I]_0}{\alpha}\right)-\text{Ei}\left(\ln\left(\frac{[M]}{[M]_0}\right)+\frac{[I]_0}{\alpha}\right)\right)\right)
+  \end{split}
+\end{equation}
+For convenience, we can define two new quantities $b$ and $\nu$.
+\begin{equation}
+  b=\alpha\ln\left(\frac{[M]}{[M]_0}\right)+[I]_0
+\end{equation}
+\begin{equation}
+  \nu = \frac{[M]_0}{\alpha}\exp\left(-\frac{[I]_0}{\alpha}\right)\left(\text{Ei}\left(\frac{[I]_0}{\alpha}\right)-\text{Ei}\left(\ln\left(\frac{[M]}{[M]_0}\right)+\frac{[I]_0}{\alpha}\right)\right)
+\end{equation}
+\begin{equation}
+  [P_1^*]=be^{-\nu}
+\end{equation}
+For each subsequent sized polymer, we can define a new differential equation. This recursive formula gives the concentration of a polymer with DP $i$ based on the concentration of a polymer with DP $i-1$.
+\begin{equation}
+  \frac{d[P_i^*]}{d[M]} = \frac{d[P_i^*]}{dt}\frac{d[t]}{d[M]}=\left(k_p[P_{i-1}^*][M]-k_p[P_i^*][M]-k_t[P_i^*]\right)\left(-\frac{1}{k_p[M][I]_0e^{-k_tt}}\right)
+\end{equation}
+Simplifying this as we did before gives us a new differential equation.
+\begin{equation}
+  \frac{d[P_i^*]}{d[M]} = \frac{[M]+\alpha}{[M]\left(\alpha\ln\left(\frac{[M]}{[M]_0}\right)+[I]_0\right)}[P_i^*]-\frac{1}{\alpha\ln\left(\frac{[M]}{[M]_0}\right)+[I]_0}[P_{i-1}^*]
+\end{equation}
+Again, integration with Mathematica gives us a closed form solution. The expression for $[P_i^*]$ in terms of $[P_{i-1}^*]$ is as follows.
+\begin{equation}
+  \begin{split}
+    [P_i^*] = & \left(\alpha\ln\left(\frac{[M]}{[M]_0}\right)+[I]_0\right)\exp\left(\frac{[M]_0}{\alpha}\exp\left(\frac{[I]_0}{\alpha}\right)\text{Ei}\left(\ln\left(\frac{[M]}{[M]_0}\right)+\frac{[I]_0}{\alpha}\right)\right)\\
+    & -\int \frac{1}{\left(\alpha\ln\left(\frac{[M]}{[M]_0}\right)+[I]_0\right)^2}\exp\left(-\frac{[M]_0}{\alpha}\exp\left(\frac{[I]_0}{\alpha}\right)\text{Ei}\left(\ln\left(\frac{[M]}{[M]_0}\right)+\frac{[I]_0}{\alpha}\right)\right)[P_{i-1}^*]d[M]
+  \end{split}
+\end{equation}
+Using our earlier notation, we can find a general form for the concentration of active chains with time.
+\begin{equation}
+  [P_i^*]=\frac{b\nu^{i-1}e^{-\nu}}{(i-1)!}
+\end{equation}
+Unfortunately, to find the dead chains of each length requires numerical methods since the integral is not solvable. We can derive this integral by first invoking the earlier rate of termination equation.
+\begin{equation}
+  \frac{d[P_i]}{dt}=\frac{[P_i^*]}{\sum_i[P_i^*]}r_t(t)dt
+\end{equation}
+In this expression, the change in the concentration of a dead chain of DP $i$ can be expressed as the infinitessimal change in the number of living chains ($r_t(t)dt$) times the proportion of chains with that DP. Doing the integration gives us the following equation.
+\begin{equation}
+  [P_i]=\int_{0}^{t_f}k_t[P_i^*]dt'
+\end{equation}
+We can define a new variable $\tau$ that is equal to $k_tt$, which allows us to ignore the actual value of $k_t$.
+\begin{equation}
+  [P_i]=\int_{0}^{\tau_f}[P_i^*]d\tau
+\end{equation}
+Additionally, if the final concentration of monomer is known, we can calculate the dead chains in terms of the monomer concentration.
+\begin{equation}
+  [P_i]=\int_{[M]_0}^{[M]}-\frac{\alpha}{[M]b}[P_i^*]d[M]
+\end{equation}
+
+\section*{Deriving the MWD for General Order Deactivation}
+Like our derivation for the distribution of a polymerization with first order deactivation, we can first find the concentration of monomer with respect to time. 
+\begin{equation}
+  [M]=[M]_0\exp\left(\frac{k_p}{k_t(n-2)}\left([I]_0^{2-n}-\left([I]_0^{1-n}+k_t(n-1)t\right)^{\frac{2-n}{1-n}}\right)\right)
+\end{equation}
+As before, we can use this to find the relevant differential equation describing the concentration of polymer with DP 1 in the reaction. Similarly, we can write a recursive differential equation for the concentration of polymer with DP $i$.
+\begin{equation}
+  \frac{d[P_1^*]}{d[M]} = \frac{[M][P_1^*]+\alpha[P_1^*]^n}{[M]\left([I]_0^{2-n}+\alpha(n-2)\ln\left(\frac{[M]}{[M]_0}\right)\right)^{\frac{1}{2-n}}}
+\end{equation}
+\begin{equation}
+  \frac{d[P_i^*]}{d[M]} = \frac{[M][P_i^*]+\alpha[P_i^*]^n}{[M]\left([I]_0^{2-n}+\alpha(n-2)\ln\left(\frac{[M]}{[M]_0}\right)\right)^{\frac{1}{2-n}}}-\frac{1}{\left([I]_0^{2-n}+\alpha(n-2)\ln\left(\frac{[M]}{[M]_0}\right)\right)^{\frac{1}{2-n}}}[P_{i-1}^*]
+\end{equation}
+Unfortunately, Mathematica can't seem to find a solution to these differential equations. We can instead try to take a different approach to finding the values for $b$ and $\nu$ for a general $n$ order termination mechanism. Consider that the total MWD should be a sum of the dead chain distribution and the living chain distribution. 
+\begin{equation}
+  MWD(m) = \int_0^{t_f}\frac{[P_i^*]}{\sum_i[P_i^*]}r_t(t)dt + [P_i^*]_{t_f}
+\end{equation}
+We know that the living portion should have a Poisson distribution, so we need to calculate $b$, the number of living chains and $\nu$, the average degree of polymerization of the living chains. For $b$, it is equivalent to the number of living chains, which we have calculated earlier.
+\begin{equation}
+  b = \left((n-1)k_tt+[I]_0^{1-n}\right)^{\frac{1}{1-n}}
+\end{equation}
+Using our expression for monomer concentration with respect to time, we can convert the independent variable from time to monomer conversion.
+\begin{equation}
+  b = \left([I]_0^{2-n}-\alpha(n-2)\ln\left(\frac{[M]}{[M]_0}\right)\right)^{\frac{1}{2-n}}
+\end{equation}
+To find the average degree of polymerization of the living portion, we can find the rate of monomer addition per chain. We can accomplish this by dividing the rate of monomer consumption by the number of active chains and integrating that from time zero to the time at which we want to know the DP of the living portion of the polymer sample.
+\begin{equation}
+  r_{add}(t) = \frac{r_p(t)}{\sum_i[P_i^*]} = k_p[M]
+\end{equation}
+\begin{equation}
+  \nu = \int_0^tk_p[M]dt'
+\end{equation}
+Integrating this equation for the monomer concentration evolution we calculated gives us the following expression for the average DP of the living portion of the distribution.
+\begin{equation}
+  \begin{split}
+    \nu = & \frac{[M]_0}{\alpha(2-n)}\exp\left(\frac{[I]_0^{2-n}}{\alpha(n-2)}\right)\left([I]_0^{1-n}E_{\frac{1}{2-n}}\left(\frac{[I]_0^{2-n}}{\alpha(n-2)}\right)-\right.\\
+          & \left.\left([I]_0^{1-n}+k_t(n-1)t\right)E_{\frac{1}{2-n}}\left(\frac{1}{\alpha(n-2)}\left([I]_0^{1-n}+k_t(n-1)t\right)^{\frac{n-2}{n-1}}\right)\right)
+  \end{split}
+\end{equation}
+We can also convert this expression to take the monomer conversion as the independent variable.
+\begin{equation}
+  \begin{split}
+    \nu = & \frac{[M]_0}{\alpha(2-n)}\exp\left(\frac{[I]_0^{2-n}}{\alpha(n-2)}\right)\left([I]_0^{1-n}E_{\frac{1}{2-n}}\left(\frac{[I]_0^{2-n}}{\alpha(n-2)}\right)-\right.\\
+          & \left.\left([I]_0^{2-n}-\alpha(n-2)\ln\left(\frac{[M]}{[M]_0}\right)\right)^{\frac{1-n}{2-n}}E_{\frac{1}{2-n}}\left(\frac{[I]_0^{2-n}}{\alpha(n-2)}-\ln\left(\frac{[M]}{[M]_0}\right)\right)\right)
+  \end{split}
+\end{equation}
+We can also simplify this expression in terms of the upper uncomplete gamma function. This makes it easier to perform computations in the code
+\begin{equation}
+  \begin{split}
+    \nu = & [M]_0\exp\left(\frac{[I]_0^{2-n}}{\alpha(n-2)}\right)\left(\alpha(n-2)\right)^{\frac{1}{2-n}}\left(\Gamma\left(\frac{1-n}{2-n},\frac{[I]_0^{2-n}}{\alpha(n-2)}\right)-\right.\\
+          & \left.\Gamma\left(\frac{1-n}{2-n},\frac{[I]_0^{2-n}}{\alpha(n-2)}-\ln\left(\frac{[M]}{[M]_0}\right)\right)\right)
+  \end{split}
+\end{equation}
+As in the case of the first order deactivation polymerization, we can calculate the living chains using the Poisson distribution with our newly calculated values for $b$ and $\nu$. Notice that our expressions for $b$ and $\nu$ reduce to the expressions we already found in the case $n=1$. In the case of $n=2$, we can take the limit of our expressions as $n\rightarrow 2$. We get new values for $[M]$, $b$ and $\nu$.
+\begin{equation}
+  [M]=[M]_0\left(1+[I]_0k_tt\right)^{-\frac{1}{\alpha}}
+\end{equation}
+\begin{equation}
+  b_{n=2} = [I]_0\left(\frac{[M]}{[M]_0}\right)^{\alpha}
+\end{equation}
+\begin{equation}
+  \nu_{n=2} = \frac{[M]_0}{[I]_0(\alpha-1)}\left(\left(\frac{[M]}{[M]_0}\right)^{1-\alpha}-1\right)
+\end{equation}
+Additionally, we can find the concentration of dead chains using the same integration strategy we used for the case in which $n=1$. Performing the same substitution for $\tau$ as we did earlier gives us the following integral.
+\begin{equation}
+  [P_i]=\int_{0}^{\tau_f}([I]_0^{1-n}+(n-1)\tau)^{-1}[P_i^*]d\tau
+\end{equation}
+Similarly, if we put this in terms of the monomer, we get the following.
+\begin{equation}
+  [P_i]=\int_{[M]_0}^{[M]}-\frac{\alpha}{[M]b^{2-n}}[P_i^*]d[M]
+\end{equation}
+We can also simplify these equations for the case $n=2$.
+\begin{equation}
+  [P_i]=\int_{0}^{\tau_f}([I]_0^{-1}+\tau)^{-1}[P_i^*]d\tau
+\end{equation}
+\begin{equation}
+  [P_i]=\int_{[M]_0}^{[M]}-\frac{\alpha}{[M]}[P_i^*]d[M]
+\end{equation}
+On the contrary, a better subsititution for time that is actually dimensionless regardless of the order of the termination is as follows.
+\begin{equation}
+  \tau = \frac{k_tt}{[I]_0^{1-n}}
+\end{equation}
+\section*{Guessing Initial Conditions}
+In order to streamline and optimize the numerical fitting, we need to find some good initial guesses for the optimization. There are five different variables that we can fit: $[M]/[M]_0$, $\alpha$, $[I]_0$, $\sigma$, and $n$. The parameter $\sigma$ represents the line broadening contribution from the SEC instrument. This and the $\alpha$ parametper should always be fit, but given one of $[M]/[M]_0$ or $[I]_0$, we can get a reasonable first guess for $\alpha$. Here we also assume $n$ is specified. From the SEC trace, we can extract two values, $DP_n$, the number average degree of polymerization, and $\nu$, the degree of polymerization of the living portion. The later can be estimated from the peak molecular weight.
+\begin{equation}
+  \frac{[M]}{[M]_0}=1-\frac{DP_n[I]_0}{[M]_0}
+\end{equation}
+\begin{equation}
+  [I]_0=\frac{[M]_0}{DP_n}\left(1-\frac{[M]}{[M]_0}\right)
+\end{equation}
+Given our expressions for $\nu$, we can use a quick root finding algorithm to find the estimated value for $\alpha$. To make the fitting easier, we can define bounds for the case $n=1$.
+\begin{equation}
+  \left([I]_0\left(\frac{\nu}{DP_n}-1\right),-\frac{[I]_0}{\ln\left(\frac{[M]}{[M]_0}\right)}\right)
+\end{equation}
+We also have some less well defined bounds for the case of a general $n$.
+\begin{equation}
+  \left(0,-\frac{[I]_0^{2-n}}{(2-n)\ln\left(\frac{[M]}{[M]_0}\right)}\right)
+\end{equation}
+Finally, there is a closed form analytical expression for $\alpha$ in the case $n=2$, which was calculated using Mathematica.
+\begin{equation}
+  \alpha_{n=2}=1-\frac{[M]_0}{[I]_0\nu}+\frac{W\left(\frac{[M]_0}{[I]_0\nu}\left(\frac{[M]}{[M]_0}\right)^{\frac{[M]_0}{[I]_0\nu}}\ln\left(\frac{[M]}{[M]_0}\right)\right)}{\ln\left(\frac{[M]}{[M]_0}\right)}
+\end{equation}
+\section*{Combined Termination MWD Model}
+Taking inspiration from radical chemistry, we can assume that for most polymerizations, there are three primary ways in which the polymerization can terminate: first order termination, second order termination by disproportionation, and second order termination by combination. First, we can calculate the amount of living chains in the polymerization.
+\begin{equation}
+  -\frac{\sum_i[P_i^*]}{dt}=r_{t1}(t)+r_{t2}(t)+r_{t3}(r) = k_{t1}\sum_i[P_i^*] + (k_{t2}+k_{t3})\left(\sum_i[P_i^*] \right)^2
+\end{equation}
+\begin{equation}
+  \sum_i[P_i^*]=\frac{k_{t1}[I]_0}{k_{t1}\exp(k_{t1}t)+[I]_0(k_{t2}+k_{t3})(\exp(k_{t1}t)-1)}
+\end{equation}
+Similar as to before, we can now take this expression for the number of living chains and insert it into our expression for the rate of polymerization.
+\begin{equation}
+  -\frac{[M]}{dt}=k_p[M]\frac{k_{t1}[I]_0}{k_{t1}\exp(k_{t1}t)+[I]_0(k_{t2}+k_{t3})(\exp(k_{t1}t)-1)}
+\end{equation}
+\begin{equation}
+  [M]=[M]_0\exp\left(-\frac{1}{\alpha_2+\alpha_3}\ln\left(\frac{(\alpha_{2}+\alpha_{3})[I]_0}{\alpha_{1}\exp(k_{t1}t)}(\exp(k_{t1}t)-1)+1\right)\right)
+\end{equation}
+Similarly, using the integration scheme we used to for the n-order MWD derivation, we can find the values for $b$ and $\nu$.
+\begin{equation}
+  b=\frac{\alpha_{1}[I]_0}{\alpha_{1}\exp(k_{t1}t)+[I]_0(\alpha_{2}+\alpha_{3})(\exp(k_{t1}t)-1)}
+\end{equation}
+\begin{equation}
+  \begin{split}
+    \nu= & \frac{[M]_0}{\alpha_1}\left(\frac{\alpha_1}{\alpha_1+(\alpha_2+\alpha_3)[I]_0}\right)^{\frac{1}{\alpha_2+\alpha_3}}\\
+         &\left(B\left(1-\frac{(\alpha_2+\alpha_3)[I]_0\exp(-k_{t1}t)}{\alpha_1+(\alpha_2+\alpha_3)[I]_0},1-\frac{1}{\alpha_2+\alpha_3},0\right)\right.\\
+         &\left.-B\left(\frac{\alpha_1}{\alpha_1+(\alpha_2+\alpha_3)[I]_0},1-\frac{1}{\alpha_2+\alpha_3},0\right)\right)
+  \end{split}
+\end{equation}
+We can also derive some equations that, given a complete termination of all chains, gives the fraction of chains terminated via each mechanism. The following equation shows the number of chains terminated in a first order mechanism.
+\begin{equation}
+  n_1 = -\frac{\alpha_1}{\alpha_2+\alpha_3}\ln\left(\frac{\alpha1}{\alpha_1+(\alpha_2+\alpha_3)[I]_0}\right)
+\end{equation}
+The following shows the number of dead chains for second order without or second order with combination. Both should be the same (given the caveat this is number of chains killed, so the final number of chains is half this number in the case of combination).
+\begin{equation}
+  n_{2,3}=\frac{[I]_0(\alpha_2+\alpha_3)+\alpha_1\ln\left(\frac{\alpha_1}{\alpha_1+(\alpha_2+\alpha_3)[I]_0}\right)}{(\alpha_2+\alpha_3)^2}\alpha_{2,3}
+\end{equation}
+For ease of solving, a number of substitutions were performed. First, a new value for time was proposed which has the following form.
+\begin{equation}
+  \tau = (r_2+r_3)(1-\exp(-k_{t1}t))
+\end{equation}
+Where $r_2=[I]_0\alpha_2/\alpha_1$ and $r_3=[I]_0\alpha_3/\alpha_1$. Additionally, two constants weree defined for ease of coding.
+\begin{equation}
+  c_1 = \frac{1}{1+r_2+r_3}
+\end{equation}
+\begin{equation}
+  c_2 = \frac{[I]_0}{\alpha_1(r_2+r_3)}
+\end{equation}
+This means we can write some important values in terms of these newly defined constants.
+\begin{equation}
+  \frac{[M]}{[M]_0} = (1+\tau)^{-c_2}
+\end{equation}
+\begin{equation}
+  b = \frac{c_2\alpha_1(r_2+r_3-\tau)}{1+\tau}
+\end{equation}
+\begin{equation}
+  \nu = \frac{[M]_0}{\alpha_1}c_1^{c_2}\left(B(c_1(1+\tau),1-c_2,0)-B(c_1,1-c_2,0)\right)
+\end{equation}
+\section*{Accounting for Non-First Order Polymerization Rate in Initiator}
+There are some specific polymerizations (in particular anionic polymerizations) that don't have first order rates in the polymer chain. We can account for this discrepancy by adjusting the values we find for $\alpha$, $n$, $[I]_0$, and $t$ after the fact. Recall the expressions for the concentration of all active chain ends in solution. Our expressions for $\nu$ depend on the evolution of $[M]$ over time.
+\begin{equation}
+  -\frac{d[M]}{dt}=k_p[M]\left(\sum_i[P_i^*]\right)^{\frac{1}{b}}
+\end{equation}
+Now we can substitute in our earlier expressions for number of active chains.
+\begin{equation}
+  -\frac{d[M]}{dt}=\begin{cases}
+                     k_p[M][I]_0^{\frac{1}{b}}e^{-\frac{k_tt}{b}} & n=1\\
+                     k_p[M]\left((n-1)k_tt+[I]_0^{1-n}\right)^{\frac{1}{b(1-n)}} & n\neq 1
+                   \end{cases}
+\end{equation}
+If we make a couple simple substitutions, we can return our original equations that we used to derive all our previous equations. In this case, let $k_t'=\frac{k_t}{b}$ (meaning $\alpha'=\frac{\alpha}{b}$), $[I]_0'=[I]_0^{\frac{1}{b}}$, and $n'=1+b(n-1)$. For our fitting, we can simply convert known quantities into the adjusted quantities and we can convert the unknowns we output from the fitting into the correct terms using $b$. Without knowledge of $b$, the other values cannot be found.
+\section*{Finding the Number Average Molecular Weight and the Weight Average Molecular Weight}
+Two important characterizations of a molecular weight distribution ($M_n$ and $M_w$) can be found from the calculations we've performed throughout this document. The molecular weights can be calculated from the moments where $M_n = \sum ix_i / \sum x_i$ and $M_w = \sum i^2x_i / \sum ix_i$ The contribution to the moments can be split into two parts, the living portion and the dead portion. The zeroeth moment is simply equivalent to $[I]_0$ since that is the total concentration of the chains. The first moment may be calculated as follows.
+$$\sum_i ix_i = \sum_i i[P_i^*] + \sum_i i[P_i]$$
+From Hiemenz and Lodge, the living portion can be simplified quite easily.
+$$\sum_i ix_i = b(\nu+1) + \sum_i i\int_{0}^{\tau_f}([I]_0^{1-n}+(n-1)\tau)^{-1}[P_i^*]d\tau$$
+Since the integrand is always positive, we can move the sum inside and notice that we simply get an integral of the living distribution multiplied by some $\tau$ dependent factor.
+$$\sum_i ix_i = b(\nu+1) + \int_{0}^{\tau_f}([I]_0^{1-n}+(n-1)\tau)^{-1}b(\nu+1)d\tau$$
+Similarly, we can do the same treatment for the second moment.
+$$\sum_i i^2x_i = b(\nu^2+3\nu+1) + \int_{0}^{\tau_f}([I]_0^{1-n}+(n-1)\tau)^{-1}b(\nu^2+3\nu+1)d\tau$$
+Thus, we can calculate the $M_n$ and $M_w$ of our calculated distributions
+\end{document}

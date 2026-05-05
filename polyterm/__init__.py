@@ -56,30 +56,29 @@ utils : Utility functions for data analysis
 Functions
 ---------
 fit_mwd : Fit kinetic model to molecular weight distribution (recommended)
+calculate_mwd : Calculate theoretical MWD from kinetic parameters
+estimate_death : Estimate dead chain fraction from experimental MWD
+estimate_alpha : Estimate alpha (kt/kp) from conversion vs living Mn data
 
 Classes
 -------
-MolecularWeightDistribution : Container for MWD data
-FitResult : Container for fitting results
+MWDResult : Immutable container for MWD data and parameters
 """
 
 from ._version import __version__
 
 # Main user-facing classes and functions
-from .mwd import MolecularWeightDistribution
-from .models import (
-    fit_mwd,
-    FitResult,
-    fit_living_peak,
-    LivingPeakResult,
-    estimate_living_fraction,
-    LivingFractionResult,
-)
+from .mwd import MWDResult
+from .fit_mwd import fit_mwd
+from .fit_atrp_mwd import fit_atrp_mwd
+from .calculate_mwd import calculate_mwd
+from .estimate_death import estimate_death
+from .estimate_alpha import estimate_alpha
 from .calibration import (
     calibrate_emg_broadening,
     calibrate_egh_broadening,
-    EMGCalibrationResult,
-    EGHCalibrationResult,
+    CalibrationResult,
+    compute_poisson_broadened_mwd,
 )
 
 # Utility functions
@@ -95,8 +94,16 @@ from .core import (
     living_chain_concentration,
     living_chain_dp,
     conversion_to_time,
-    calculate_mwd,
-    calculate_distribution,
+)
+
+# Kinetics models (for custom kinetics)
+from .core import (
+    STANDARD_KINETICS,
+    LIVING_CHAIN_CONC,
+    LIVING_CHAIN_DP,
+    CONVERSION_TO_TIME,
+    MONOMER_CONVERSION,
+    validate_kinetics,
 )
 
 __all__ = [
@@ -104,17 +111,16 @@ __all__ = [
     '__version__',
     # Main API (recommended)
     'fit_mwd',
-    'FitResult',
-    'fit_living_peak',
-    'LivingPeakResult',
-    'estimate_living_fraction',
-    'LivingFractionResult',
-    'MolecularWeightDistribution',
+    'fit_atrp_mwd',
+    'calculate_mwd',
+    'estimate_death',
+    'estimate_alpha',
+    'MWDResult',
     # Calibration
     'calibrate_emg_broadening',
     'calibrate_egh_broadening',
-    'EMGCalibrationResult',
-    'EGHCalibrationResult',
+    'CalibrationResult',
+    'compute_poisson_broadened_mwd',
     # Utilities
     'calculate_number_average_dp',
     'fit_right_edge',
@@ -124,8 +130,13 @@ __all__ = [
     'living_chain_concentration',
     'living_chain_dp',
     'conversion_to_time',
-    'calculate_mwd',
-    'calculate_distribution',
+    # Kinetics models (for custom kinetics)
+    'STANDARD_KINETICS',
+    'LIVING_CHAIN_CONC',
+    'LIVING_CHAIN_DP',
+    'CONVERSION_TO_TIME',
+    'MONOMER_CONVERSION',
+    'validate_kinetics',
 ]
 
 # Package metadata

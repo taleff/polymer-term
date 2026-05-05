@@ -14,11 +14,21 @@ from .kinetics import (
     time_to_chain_death,
 )
 
+from .kinetics_models import (
+    STANDARD_KINETICS,
+    LIVING_CHAIN_CONC,
+    LIVING_CHAIN_DP,
+    CONVERSION_TO_TIME,
+    MONOMER_CONVERSION,
+    REQUIRED_KEYS,
+    validate_kinetics,
+    find_chain_death_time,
+)
+
 from .distributions import (
     calculate_dp_range,
-    calculate_distribution,
-    calculate_mwd,
-    living_distribution_integrand,
+    get_poisson_dp_range,
+    compute_poisson_mass_fracs,
 )
 
 from .broadening import (
@@ -35,6 +45,15 @@ __all__ = [
     'living_chain_dp',
     'conversion_to_time',
     'time_to_chain_death',
+    # Kinetics models
+    'STANDARD_KINETICS',
+    'LIVING_CHAIN_CONC',
+    'LIVING_CHAIN_DP',
+    'CONVERSION_TO_TIME',
+    'MONOMER_CONVERSION',
+    'REQUIRED_KEYS',
+    'validate_kinetics',
+    'find_chain_death_time',
     # Broadening
     'gaussian_broadening',
     'emg_broadening',
@@ -42,7 +61,4 @@ __all__ = [
     'compute_broadening_matrix',
     # Distributions
     'calculate_dp_range',
-    'calculate_distribution',
-    'calculate_mwd',
-    'living_distribution_integrand',
 ]

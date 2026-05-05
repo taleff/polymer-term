@@ -64,11 +64,17 @@ class TestFitRightEdge:
 
   def test_basic_fit(self, simple_mws, standard_params):
     """Test fitting a synthetic peak."""
-    from polyterm import MolecularWeightDistribution
+    from polyterm import calculate_mwd
 
-    mwd = MolecularWeightDistribution.from_kinetics(
-      molecular_weights=simple_mws,
-      **standard_params
+    mwd = calculate_mwd(
+      simple_mws,
+      standard_params['monomer_mw'],
+      standard_params['init_mon'],
+      standard_params['alpha'],
+      standard_params['init'],
+      standard_params['conversion'],
+      standard_params['order'],
+      standard_params['sigma']
     )
 
     nup, sigma = fit_right_edge(

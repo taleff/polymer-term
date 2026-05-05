@@ -1,0 +1,22 @@
+{
+  "description": "First-order termination polymerization experiments",
+  "kinetics": {
+    "monomer_mw": 104.15,
+    "init_mon": 1.0,
+    "init": 0.00707,
+    "kp": 11.6,
+    "order": 1.0,
+    "time": 20.0
+  },
+  "broadening": {
+    "sigma": 0.128,
+    "tau": 0.0456
+  },
+  "runs": {
+    "1": {"alpha": 0.0200, "file": "run_1.txt"},
+    "2": {"alpha": 0.0100, "file": "run_2.txt"},
+    "3": {"alpha": 0.0067, "file": "run_3.txt"},
+    "4": {"alpha": 0.0050, "file": "run_4.txt"},
+    "5": {"alpha": 0.0040, "file": "run_5.txt"}
+  }
+}
