@@ -70,7 +70,7 @@ from ._version import __version__
 # Main user-facing classes and functions
 from .mwd import MWDResult
 from .fit_mwd import fit_mwd
-from .fit_atrp_mwd import fit_atrp_mwd
+
 from .calculate_mwd import calculate_mwd
 from .estimate_death import estimate_death
 from .estimate_alpha import estimate_alpha
@@ -111,7 +111,6 @@ __all__ = [
     '__version__',
     # Main API (recommended)
     'fit_mwd',
-    'fit_atrp_mwd',
     'calculate_mwd',
     'estimate_death',
     'estimate_alpha',

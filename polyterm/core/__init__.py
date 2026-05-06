@@ -20,9 +20,12 @@ from .kinetics_models import (
     LIVING_CHAIN_DP,
     CONVERSION_TO_TIME,
     MONOMER_CONVERSION,
+    CHAIN_DEATH_RATE,
+    SECOND_ORDER_DEATH_RATE,
     REQUIRED_KEYS,
     validate_kinetics,
     find_chain_death_time,
+    make_combined_kinetics,
 )
 
 from .distributions import (

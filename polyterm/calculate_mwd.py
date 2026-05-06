@@ -17,6 +17,7 @@ from .core.kinetics_models import (
     LIVING_CHAIN_DP,
     CONVERSION_TO_TIME,
     CHAIN_DEATH_RATE,
+    SECOND_ORDER_DEATH_RATE,
 )
 
 from .core.distributions import get_poisson_dp_range
@@ -210,41 +211,46 @@ def _compute_dead_chain_fracs(time, dps, alpha, init_mon, init, order,
             "the fitted alpha value is outside the valid range for the kinetics model."
         )
 
-    # Compute dead chain fractions, blending disproportionation and
-    # combination contributions based on the combination fraction.
-    # For Poisson distributions, Poisson(a) * Poisson(b) = Poisson(a+b),
-    # so combination chains at DP = 2*nup use the same Poisson formula.
-    if combination <= 0.0:
-        # Pure disproportionation
-        idx_end = get_poisson_dp_range(np.max(nups), dps)
-        dist_matrix = np.zeros((len(nups), len(dps)), dtype=float)
-        dist_matrix[:, :idx_end] = distribution(
-            dps[:idx_end][np.newaxis, :], nups[:, np.newaxis]
-        )
-        dead_fracs = (quad_w * integrand_weights) @ dist_matrix
-    elif combination >= 1.0:
-        # Pure combination: doubled DP, halved event count
-        idx_end = get_poisson_dp_range(np.max(2 * nups), dps)
-        dist_matrix = np.zeros((len(nups), len(dps)), dtype=float)
-        dist_matrix[:, :idx_end] = distribution(
-            dps[:idx_end][np.newaxis, :], (2 * nups)[:, np.newaxis]
-        )
-        dead_fracs = (quad_w * integrand_weights / 2) @ dist_matrix
+    # Split death rate into components for proper dead chain DP assignment.
+    # First-order + disproportionation produce dead chains at Poisson(nup).
+    # Combination produces dead chains at Poisson(2*nup) with halved count
+    # (two radicals combine into one chain).
+    #
+    # For combined kinetics models (with SECOND_ORDER_DEATH_RATE key),
+    # the first-order and second-order contributions are computed separately.
+    # For standard models, all termination is second-order.
+    if SECOND_ORDER_DEATH_RATE in kinetics:
+        second_order_weights = np.array([
+            kinetics[SECOND_ORDER_DEATH_RATE](
+                alpha, init_mon, init, order, t, bn)
+            for t in quad_t
+        ])
     else:
-        # Mixed: blend disproportionation and combination
-        disp_idx = get_poisson_dp_range(np.max(nups), dps)
-        disp_matrix = np.zeros((len(nups), len(dps)), dtype=float)
-        disp_matrix[:, :disp_idx] = distribution(
-            dps[:disp_idx][np.newaxis, :], nups[:, np.newaxis]
-        )
+        second_order_weights = integrand_weights
+
+    # Weights for chains produced at nup (first-order + disproportionation)
+    disp_weights = integrand_weights - combination * second_order_weights
+    # Weights for chains produced at 2*nup (combination, halved count)
+    comb_weights = combination * second_order_weights / 2
+
+    # Build disproportionation distribution matrix (chains at nup)
+    disp_idx = get_poisson_dp_range(np.max(nups), dps)
+    disp_matrix = np.zeros((len(nups), len(dps)), dtype=float)
+    disp_matrix[:, :disp_idx] = distribution(
+        dps[:disp_idx][np.newaxis, :], nups[:, np.newaxis]
+    )
+    disp_fracs = (quad_w * disp_weights) @ disp_matrix
+
+    if combination > 0.0:
+        # Build combination distribution matrix (chains at 2*nup)
         comb_idx = get_poisson_dp_range(np.max(2 * nups), dps)
         comb_matrix = np.zeros((len(nups), len(dps)), dtype=float)
         comb_matrix[:, :comb_idx] = distribution(
             dps[:comb_idx][np.newaxis, :], (2 * nups)[:, np.newaxis]
         )
-        disp_fracs = (quad_w * integrand_weights) @ disp_matrix
-        comb_fracs = (quad_w * integrand_weights / 2) @ comb_matrix
-        dead_fracs = (1 - combination) * disp_fracs + combination * comb_fracs
+        dead_fracs = disp_fracs + (quad_w * comb_weights) @ comb_matrix
+    else:
+        dead_fracs = disp_fracs
 
     return dead_fracs
 
