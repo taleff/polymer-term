@@ -125,6 +125,9 @@ def validate_kinetics(kinetics):
     ValueError
         If required keys are missing, with helpful message about typos.
     """
+    if kinetics is None:
+        return STANDARD_KINETICS
+
     missing = REQUIRED_KEYS - set(kinetics.keys())
     if missing:
         extra = set(kinetics.keys()) - REQUIRED_KEYS
