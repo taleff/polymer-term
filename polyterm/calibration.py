@@ -69,6 +69,27 @@ class CalibrationResult:
         )
 
 
+def _poisson_mass_fracs(dps, center_dp, n_sigma=6.0):
+    """Compute Poisson mass fractions over the relevant DP range.
+
+    Returns an array of weight-fraction contributions (pmf * dp)
+    for each entry in dps, zeroed outside n_sigma standard deviations
+    of center_dp.
+    """
+    idx_end = get_poisson_dp_range(center_dp, dps, n_sigma=n_sigma)
+    std = np.sqrt(max(center_dp, 1))
+    min_dp = max(1, int(center_dp - n_sigma * std))
+    idx_start = max(0, min_dp - 1)
+
+    mass_fracs = np.zeros(len(dps), dtype=float)
+    if idx_start < idx_end:
+        relevant_dps = dps[idx_start:idx_end]
+        mass_fracs[idx_start:idx_end] = (
+            poisson.pmf(relevant_dps, center_dp) * relevant_dps
+        )
+    return mass_fracs
+
+
 def compute_poisson_broadened_mwd(molecular_weights, center_dp,
                                   monomer_mw, sigma, tau = 0.0,
                                   broadening_model = 'egh'):
@@ -98,25 +119,9 @@ def compute_poisson_broadened_mwd(molecular_weights, center_dp,
     dp_mws = dps_mesh * monomer_mw
 
     broadening_matrix = broadening_func(mws_mesh, dp_mws, sigma, tau)
+    mass_fracs = _poisson_mass_fracs(dps, center_dp)
 
-    # Compute Poisson mass fractions only in relevant range
-    idx_end = get_poisson_dp_range(center_dp, dps, n_sigma=6.0)
-    # Compute start index based on n_sigma below the mean
-    std = np.sqrt(max(center_dp, 1))
-    min_dp = max(1, int(center_dp - 6.0 * std))
-    idx_start = max(0, min_dp - 1)  # dps starts at 1
-
-    mass_fracs = np.zeros(len(dps), dtype=float)
-    if idx_start < idx_end:
-        relevant_dps = dps[idx_start:idx_end]
-        mass_fracs[idx_start:idx_end] = (
-            poisson.pmf(relevant_dps, center_dp) * relevant_dps
-        )
-
-    # Apply broadening
-    distribution = broadening_matrix @ mass_fracs
-
-    return distribution
+    return broadening_matrix @ mass_fracs
 
 
 def _calibrate_broadening(molecular_weights, intensities,
@@ -323,23 +328,8 @@ def _calibrate_with_poisson(molecular_weights, intensities_norm,
         """Compute sum of squared residuals using Poisson-broadened model."""
         sigma, tau, center_dp = params
         try:
-            # Compute broadening matrix
             broadening_matrix = broadening_func(mws_mesh, dp_mws, sigma, tau)
-
-            # Compute Poisson mass fractions only in relevant range
-            idx_end = get_poisson_dp_range(center_dp, dps, n_sigma=6.0)
-            # Compute start index based on n_sigma below the mean
-            std = np.sqrt(max(center_dp, 1))
-            min_dp_val = max(1, int(center_dp - 6.0 * std))
-            idx_start = max(0, min_dp_val - 1)  # dps starts at 1
-
-            mass_fracs = np.zeros(len(dps), dtype=float)
-            if idx_start < idx_end:
-                relevant_dps = dps[idx_start:idx_end]
-                mass_fracs[idx_start:idx_end] = (
-                    poisson.pmf(relevant_dps, center_dp) * relevant_dps
-                )
-
+            mass_fracs = _poisson_mass_fracs(dps, center_dp)
             pred = broadening_matrix @ mass_fracs
             pred_norm = np.trapezoid(pred, log_mws)
             if pred_norm > 0:
@@ -370,21 +360,7 @@ def _calibrate_with_poisson(molecular_weights, intensities_norm,
 
     # Calculate R-squared for the fit
     broadening_matrix = broadening_func(mws_mesh, dp_mws, sigma, tau)
-
-    # Compute Poisson mass fractions only in relevant range
-    idx_end = get_poisson_dp_range(center_dp, dps, n_sigma=6.0)
-    # Compute start index based on n_sigma below the mean
-    std = np.sqrt(max(center_dp, 1))
-    min_dp_final = max(1, int(center_dp - 6.0 * std))
-    idx_start = max(0, min_dp_final - 1)
-
-    mass_fracs = np.zeros(len(dps), dtype=float)
-    if idx_start < idx_end:
-        relevant_dps = dps[idx_start:idx_end]
-        mass_fracs[idx_start:idx_end] = (
-            poisson.pmf(relevant_dps, center_dp) * relevant_dps
-        )
-
+    mass_fracs = _poisson_mass_fracs(dps, center_dp)
     pred = broadening_matrix @ mass_fracs
     pred_norm = np.trapezoid(pred, log_mws)
     if pred_norm > 0:
@@ -487,78 +463,14 @@ def calibrate_egh_broadening(molecular_weights, intensities,
                              max_sigma = 0.5, max_tau = 0.4,
                             monomer_mw = None):
     """
-    Calibrate SEC instrumental broadening from a narrow standard using EGH.
+    Calibrate SEC instrumental broadening using the EGH model.
 
-    Fits Exponential-Gaussian Hybrid (EGH) parameters to a narrow
-    molecular weight standard to characterize instrumental broadening.
-    The EGH model is numerically stable and particularly effective for
-    highly asymmetric peaks.
-
+    Identical to :func:`calibrate_emg_broadening` but uses the
+    Exponential-Gaussian Hybrid (EGH) broadening model, which is
+    numerically stable and effective for highly asymmetric peaks.
     Based on Lan & Jorgenson, J. Chromatogr. A 915 (2001) 1-13.
 
-    Parameters
-    ----------
-    molecular_weights : ndarray
-        Molecular weights at which the distribution is measured.
-    intensities : ndarray
-        Intensity values (should be a narrow, approximately symmetric
-        peak for best results).
-    max_sigma : float, optional
-        Maximum allowed sigma value. Default is 0.5.
-    max_tau : float, optional
-        Maximum allowed tau value. Default is 0.2.
-    monomer_mw : float, optional
-        Molecular weight of one monomer unit. If provided, the calibration
-        accounts for the natural Poisson dispersity of living polymerization.
-        This is important when calibrating with living polymer standards,
-        especially at low DP where the intrinsic Poisson width can be
-        comparable to or larger than instrumental broadening.
-
-    Returns
-    -------
-    CalibrationResult
-        Fitted broadening parameters and fit quality metrics.
-
-    Notes
-    -----
-    The fit optimizes sigma, tau, and center simultaneously to minimize
-    the sum of squared residuals between the observed and predicted
-    intensity profiles.
-
-    When monomer_mw is None, the standard is assumed to be a delta function
-    (infinitely narrow). This is appropriate for narrow polymer standards
-    with very high DP where the Poisson width is negligible.
-
-    When monomer_mw is provided, the fitting accounts for the Poisson
-    distribution of chain lengths in living polymerization:
-    - Chain lengths follow Poisson(nup) where nup is the average DP
-    - The observed peak width includes both Poisson and instrumental broadening
-    - The fit extracts the instrumental broadening component
-
-    Examples
-    --------
-    Calibrate from a narrow polystyrene standard (high DP):
-
-    >>> result = calibrate_egh_broadening(standard_mws, standard_intensities)
-    >>> print(f"sigma={result.sigma:.3f}, tau={result.tau:.3f}")
-
-    Calibrate from a living polymer standard (accounts for Poisson width):
-
-    >>> result = calibrate_egh_broadening(
-    ...     standard_mws, standard_intensities,
-    ...     monomer_mw=104.0  # styrene
-    ... )
-
-    Use the calibration with fit_mwd:
-
-    >>> fit_result = fit_mwd(
-    ...     mws, intensities,
-    ...     order=1.5,
-    ...     monomer_mw=100.0,
-    ...     init_mon=1.0,
-    ...     sigma=result.sigma,
-    ...     tau=result.tau
-    ... )
+    See :func:`calibrate_emg_broadening` for full parameter documentation.
     """
     return _calibrate_broadening(
         molecular_weights, intensities,

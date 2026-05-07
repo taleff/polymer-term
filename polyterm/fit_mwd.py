@@ -6,16 +6,13 @@ distributions to kinetic models.
 """
 
 import numpy as np
-from scipy.optimize import minimize, differential_evolution
+from scipy.optimize import differential_evolution
 
 from .core.kinetics_models import (
     validate_kinetics,
     find_chain_death_time,
     CONVERSION_TO_TIME,
-    MONOMER_CONVERSION,
     STANDARD_KINETICS,
-    ROMP_FIRST_ORDER_KINETICS,
-    ROMP_SECOND_ORDER_KINETICS,
 )
 
 from .calculate_mwd import (

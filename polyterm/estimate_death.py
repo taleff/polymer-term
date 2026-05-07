@@ -137,6 +137,13 @@ def estimate_death(molecular_weights, intensities, sigma, tau, monomer_mw=None):
     )
 
 
+def _dead_fraction_from_intensities(mws, experimental, living):
+    """Estimate dead chain fraction from weight-fraction intensities."""
+    mole_frac_exp = experimental / mws
+    mole_frac_live = living / mws
+    return 1 - (np.sum(mole_frac_live) / np.sum(mole_frac_exp))
+
+
 def _fit_poisson_egh(mws, ints, edge_mws, edge_ints, peak_mw,
                      monomer_mw, sigma, tau):
     """
@@ -144,7 +151,6 @@ def _fit_poisson_egh(mws, ints, edge_mws, edge_ints, peak_mw,
 
     Accounts for intrinsic Poisson width of living chain distributions.
     """
-    # Calculate DP range needed for broadening
     max_dp = int(np.max(mws) / monomer_mw)
     dps = np.arange(1, max_dp, dtype=int)
 
@@ -152,17 +158,11 @@ def _fit_poisson_egh(mws, ints, edge_mws, edge_ints, peak_mw,
     dps_mesh, mws_mesh = np.meshgrid(dps, edge_mws)
     edge_broadenings = egh_broadening(mws_mesh, dps_mesh * monomer_mw, sigma, tau)
 
-    def compute_edge_distribution(nup, coeff):
-        mass_fracs = poisson.pmf(dps, nup) * dps
-        living_dist = edge_broadenings @ mass_fracs
-        return coeff * living_dist
-
     def residual(params):
         nup, coeff = params
-        predicted = compute_edge_distribution(nup, coeff)
-        return predicted - edge_ints
+        mass_fracs = poisson.pmf(dps, nup) * dps
+        return coeff * (edge_broadenings @ mass_fracs) - edge_ints
 
-    # Fit center DP and coefficient
     initial_guess = [peak_mw / monomer_mw, 0.01]
     bounds = ([1, 0], [max_dp, np.inf])
     result = least_squares(residual, x0=initial_guess, bounds=bounds,
@@ -173,14 +173,9 @@ def _fit_poisson_egh(mws, ints, edge_mws, edge_ints, peak_mw,
     # Generate living distribution over full MW range
     dps_mesh, mws_mesh = np.meshgrid(dps, mws)
     broadenings = egh_broadening(mws_mesh, dps_mesh * monomer_mw, sigma, tau)
-    live_chain_intensities = coeff_fit * (broadenings @ (poisson.pmf(dps, nup_fit) * dps))
+    live_ints = coeff_fit * (broadenings @ (poisson.pmf(dps, nup_fit) * dps))
 
-    # Calculate dead chain fraction from mole fractions
-    mole_frac_exp = ints / mws
-    mole_frac_live = live_chain_intensities / mws
-    dead_chain_fraction = 1 - (np.sum(mole_frac_live) / np.sum(mole_frac_exp))
-
-    return live_chain_intensities, dead_chain_fraction
+    return live_ints, _dead_fraction_from_intensities(mws, ints, live_ints)
 
 
 def _fit_simple_egh(mws, ints, edge_mws, edge_ints, peak_mw, sigma, tau):
@@ -190,29 +185,17 @@ def _fit_simple_egh(mws, ints, edge_mws, edge_ints, peak_mw, sigma, tau):
     Does not account for Poisson broadening - suitable when monomer MW
     is unknown or when Poisson width is negligible (high DP).
     """
-    def compute_egh_peak(center_mw, coeff):
-        return coeff * egh_broadening(edge_mws, center_mw, sigma, tau)
-
     def residual(params):
         center_mw, coeff = params
-        predicted = compute_egh_peak(center_mw, coeff)
-        return predicted - edge_ints
+        return coeff * egh_broadening(edge_mws, center_mw, sigma, tau) - edge_ints
 
-    # Fit center MW and coefficient
     initial_guess = [peak_mw, np.max(edge_ints)]
     bounds = ([np.min(mws), 0], [np.max(mws), np.inf])
     result = least_squares(residual, x0=initial_guess, bounds=bounds,
                            method='trf')
 
     center_mw_fit, coeff_fit = result.x
+    live_ints = coeff_fit * egh_broadening(mws, center_mw_fit, sigma, tau)
 
-    # Generate living distribution over full MW range
-    live_chain_intensities = coeff_fit * egh_broadening(mws, center_mw_fit, sigma, tau)
-
-    # Calculate dead chain fraction from mole fractions
-    mole_frac_exp = ints / mws
-    mole_frac_live = live_chain_intensities / mws
-    dead_chain_fraction = 1 - (np.sum(mole_frac_live) / np.sum(mole_frac_exp))
-
-    return live_chain_intensities, dead_chain_fraction
+    return live_ints, _dead_fraction_from_intensities(mws, ints, live_ints)
 
