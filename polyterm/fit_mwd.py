@@ -8,34 +8,34 @@ distributions to kinetic models.
 import numpy as np
 from scipy.optimize import differential_evolution
 
-from .core.kinetics_models import (
+from .kinetics.models import (
     validate_kinetics,
-    find_chain_death_time,
-    CONVERSION_TO_TIME,
+    DEFAULT_COMBINATION,
     STANDARD_KINETICS,
 )
 
-from .calculate_mwd import (
-    _poisson_distribution,
-    _compute_dead_chain_fracs,
-    _compute_live_chain_fracs,
-    _compute_mwd_from_fracs,
-    _compute_dead_chain_fraction,
+from .core.mwd_computation import (
+    poisson_distribution,
+    compute_dead_chain_fracs,
+    compute_live_chain_fracs,
+    compute_mwd_from_fracs,
+    compute_dead_chain_fraction,
+    conversion_to_reduced_time,
 )
 
 from .core.distributions import get_poisson_dp_range
 
 from .core.broadening import compute_broadening_matrix
 
-from .models.estimation import estimate_alpha
+from .core.initial_guess import estimate_initial_alpha
 
-from .utils import (
+from .core.utils import (
     calculate_number_average_dp,
     fit_right_edge,
     calculate_r_squared,
 )
 
-from .mwd.mwd import MWDResult
+from .mwd import MWDResult
 
 __all__ = [
     'fit_mwd',
@@ -44,9 +44,9 @@ __all__ = [
 
 def fit_mwd(molecular_weights, intensities, order, monomer_mw,
             init_mon, *, sigma=None, tau=None, conversion=None,
-            init=None, combination=0.0, bn=1.0, max_fit_points=500,
-            n_quadrature_points=200, kinetics=STANDARD_KINETICS,
-            distribution=_poisson_distribution, seed=42):
+            init=None, combination=None, bn=1.0, max_fit_points=500,
+            n_quadrature_points=500, kinetics=STANDARD_KINETICS,
+            distribution=poisson_distribution, seed=42):
     """
     Fit kinetic model to a molecular weight distribution.
 
@@ -73,10 +73,11 @@ def fit_mwd(molecular_weights, intensities, order, monomer_mw,
         Monomer conversion (0 to 1). If None, will be fitted.
     init : float, optional
         Initial initiator concentration. If None, will be fitted.
-    combination : float, optional
+    combination : float or None, optional
         Fraction of termination events that proceed by combination,
         between 0.0 (pure disproportionation) and 1.0 (pure
-        combination). Default 0.0.
+        combination). If None, uses the kinetics dict's
+        ``default_combination`` value, or 0.0 if not present.
     bn : float, optional
         Inverse of propagation order. Default 1.0.
     max_fit_points : int, optional
@@ -155,6 +156,8 @@ def fit_mwd(molecular_weights, intensities, order, monomer_mw,
         raise ValueError("tau requires sigma to be specified")
     if order <= 0:
         raise ValueError("order must be positive")
+    if combination is None:
+        combination = kinetics.get(DEFAULT_COMBINATION, 0.0)
     if not (0 <= combination <= 1):
         raise ValueError("combination must be between 0 and 1")
     if conversion is not None and not (0 <= conversion <= 1):
@@ -265,7 +268,7 @@ def _build_param_spec(init_mon, order, nu, nup, sigma_est, kinetics, *,
     max_reasonable_dp = 10000
 
     # Initial alpha estimate from observed distribution shape
-    alpha_est = estimate_alpha(
+    alpha_est = estimate_initial_alpha(
         order, mon_frac_est, init_est, init_mon, nu, nup
     )
     # Ensure estimate is positive and finite
@@ -273,13 +276,22 @@ def _build_param_spec(init_mon, order, nu, nup, sigma_est, kinetics, *,
         alpha_est = init_est / init_mon
 
     # Alpha bounds: 3 orders of magnitude on each side of the
-    # data-driven estimate. This keeps the search space tractable
-    # for global optimization while being model-agnostic.
-    min_alpha = alpha_est / 1000
-    max_alpha = alpha_est * 1000
+    # data-driven estimate in log10 space. Using log-space ensures
+    # uniform sampling across decades, which is critical for scale
+    # parameters that can span many orders of magnitude.
+    log_alpha_est = np.log10(alpha_est)
+    log_min_alpha = log_alpha_est - 3
+    log_max_alpha = log_alpha_est + 3
 
-    init_guess = [alpha_est]
-    bounds = [(min_alpha, max_alpha)]
+    # Ensure the lower bound extends into the living-polymer regime.
+    # For ROMP-like models, alpha ~ init/init_mon marks the threshold
+    # between mild and complete termination. The bounds must include
+    # this region so the optimizer can find low-termination solutions.
+    log_living_ref = np.log10(max(init_est / init_mon, 1e-10))
+    log_min_alpha = min(log_min_alpha, log_living_ref - 1)
+
+    init_guess = [log_alpha_est]
+    bounds = [(log_min_alpha, log_max_alpha)]
 
     # Build init_guess/bounds in same order as param_names
     if 'init' in param_names:
@@ -316,7 +328,7 @@ def _build_param_spec(init_mon, order, nu, nup, sigma_est, kinetics, *,
 def _create_objective(fit_mws, fit_ints, dps, monomer_mw, init_mon, order,
                       kinetics, *, sigma, tau, conversion, init, combination,
                       bn, param_spec, n_quadrature_points=100,
-                      distribution=_poisson_distribution):
+                      distribution=poisson_distribution):
     """Create objective function for optimization."""
     # Pre-compute broadening matrix if sigma is fixed
     if sigma is not None:
@@ -334,7 +346,7 @@ def _create_objective(fit_mws, fit_ints, dps, monomer_mw, init_mon, order,
     def objective(x):
         params = dict(zip(param_spec['names'], x))
 
-        alpha_val = params['alpha']
+        alpha_val = 10 ** params['alpha']
         sigma_val = params.get('sigma', sigma)
         init_val = params.get('init', init)
 
@@ -353,15 +365,10 @@ def _create_objective(fit_mws, fit_ints, dps, monomer_mw, init_mon, order,
             # Compute time from conversion via the kinetics model.
             # Invalid parameter combinations will produce NaN/Inf or
             # raise exceptions, which are caught and penalized.
-            if np.isclose(conv_val, 1):
-                time = find_chain_death_time(
-                    kinetics, alpha_val, init_mon, init_val, order,
-                    0.9999, bn
-                )
-            else:
-                time = kinetics[CONVERSION_TO_TIME](
-                    alpha_val, init_mon, init_val, order, conv_val, bn
-                )
+            time = conversion_to_reduced_time(
+                kinetics, alpha_val, init_mon, init_val, order,
+                conv_val, bn
+            )
 
             if not np.isfinite(time) or time < 0:
                 return 1e10
@@ -390,7 +397,7 @@ def _create_objective(fit_mws, fit_ints, dps, monomer_mw, init_mon, order,
 
 def _compute_mwd_for_fit(time, alpha, init, dps, broadenings, init_mon,
                          order, combination, bn, n_quadrature_points, kinetics,
-                         distribution=_poisson_distribution):
+                         distribution=poisson_distribution):
     """Compute MWD for fitting (returns only total intensities)."""
     # Guard against invalid parameters
     if not (np.isfinite(alpha) and np.isfinite(init)):
@@ -401,16 +408,16 @@ def _compute_mwd_for_fit(time, alpha, init, dps, broadenings, init_mon,
         return None
 
     # Compute fractions using helper functions
-    dead_fracs = _compute_dead_chain_fracs(
+    dead_fracs = compute_dead_chain_fracs(
         time, dps, alpha, init_mon, init, order, bn,
         combination, n_quadrature_points, kinetics, distribution
     )
-    live_fracs = _compute_live_chain_fracs(
+    live_fracs = compute_live_chain_fracs(
         time, dps, alpha, init_mon, init, order, bn, kinetics, distribution
     )
 
     # Compute MWD
-    intensities, _, _ = _compute_mwd_from_fracs(
+    intensities, _, _ = compute_mwd_from_fracs(
         dead_fracs, live_fracs, dps, broadenings
     )
 
@@ -447,8 +454,9 @@ def _optimize(objective, param_spec, seed=42):
         seed=seed,
         tol=1e-4,
         atol=0,
-        maxiter=100,
-        popsize=10,
+        maxiter=150,
+        popsize=15,
+        mutation=(0.5, 1.5),
         init='latinhypercube',
     )
 
@@ -473,13 +481,13 @@ def _optimize(objective, param_spec, seed=42):
 def _build_fit_result(opt_result, fit_mws, fit_ints, dps, monomer_mw,
                       init_mon, order, kinetics, *, sigma, tau, conversion,
                       init, combination, bn, param_spec, n_quadrature_points=100,
-                      distribution=_poisson_distribution):
+                      distribution=poisson_distribution):
     """Build FitResult from optimization output."""
     param_names = param_spec['names']
     x = opt_result['x']
     params = dict(zip(param_names, x))
 
-    alpha = params['alpha']
+    alpha = 10 ** params['alpha']
     sigma_val = params.get('sigma', sigma)
     init_val = params.get('init', init)
 
@@ -491,14 +499,9 @@ def _build_fit_result(opt_result, fit_mws, fit_ints, dps, monomer_mw,
 
     # Compute time from conversion using the kinetics model
     try:
-        if np.isclose(conversion_val, 1):
-            time = find_chain_death_time(
-                kinetics, alpha, init_mon, init_val, order, 0.9999, bn
-            )
-        else:
-            time = kinetics[CONVERSION_TO_TIME](
-                alpha, init_mon, init_val, order, conversion_val, bn
-            )
+        time = conversion_to_reduced_time(
+            kinetics, alpha, init_mon, init_val, order, conversion_val, bn
+        )
     except (ValueError, ZeroDivisionError):
         time = np.nan
 
@@ -513,11 +516,11 @@ def _build_fit_result(opt_result, fit_mws, fit_ints, dps, monomer_mw,
 
     # Compute fractions using helper functions
     try:
-        dead_fracs = _compute_dead_chain_fracs(
+        dead_fracs = compute_dead_chain_fracs(
             time, dps, alpha, init_mon, init_val, order, bn,
             combination, n_quadrature_points, kinetics, distribution
         )
-        live_fracs = _compute_live_chain_fracs(
+        live_fracs = compute_live_chain_fracs(
             time, dps, alpha, init_mon, init_val, order, bn, kinetics,
             distribution
         )
@@ -534,12 +537,23 @@ def _build_fit_result(opt_result, fit_mws, fit_ints, dps, monomer_mw,
     )
 
     # Compute MWD
-    intensities, dead_ints, live_ints = _compute_mwd_from_fracs(
+    intensities, dead_ints, live_ints = compute_mwd_from_fracs(
         dead_fracs, live_fracs, dps, broadenings
     )
 
+    # Check for degenerate result (empty MWD)
+    if np.max(intensities) <= 0:
+        raise ValueError(
+            f"Fitting converged to parameters that produce an empty MWD: "
+            f"alpha={alpha:.6g}, init={init_val:.6g}, "
+            f"conversion={conversion_val:.6g}. "
+            f"This typically means the optimizer could not find valid "
+            f"parameters within the search bounds. Check that the kinetics "
+            f"model is appropriate for your data."
+        )
+
     # Compute dead chain fraction and R-squared
-    dead_fraction = _compute_dead_chain_fraction(dead_fracs, live_fracs)
+    dead_fraction = compute_dead_chain_fraction(dead_fracs, live_fracs)
     r_squared = calculate_r_squared(fit_ints, intensities)
 
     return MWDResult(

@@ -63,7 +63,7 @@ class MWDResult:
     tau: Optional[float] = None
     conversion: Optional[float] = None
 
-    # Fit paramters
+    # Fit parameters
     r_squared: Optional[float] = None
 
     def __repr__(self) -> str:

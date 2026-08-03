@@ -10,11 +10,9 @@ from typing import Optional, Tuple
 
 import numpy as np
 from scipy.optimize import minimize
-from scipy.stats import poisson
-
-from .core.broadening import emg_broadening, egh_broadening
-from .core.distributions import get_poisson_dp_range
-from .utils import calculate_r_squared
+from .core.broadening import emg_broadening, egh_broadening, compute_broadening_matrix
+from .core.distributions import poisson_mass_fracs
+from .core.utils import calculate_r_squared
 
 __all__ = [
     'calibrate_emg_broadening',
@@ -69,27 +67,6 @@ class CalibrationResult:
         )
 
 
-def _poisson_mass_fracs(dps, center_dp, n_sigma=6.0):
-    """Compute Poisson mass fractions over the relevant DP range.
-
-    Returns an array of weight-fraction contributions (pmf * dp)
-    for each entry in dps, zeroed outside n_sigma standard deviations
-    of center_dp.
-    """
-    idx_end = get_poisson_dp_range(center_dp, dps, n_sigma=n_sigma)
-    std = np.sqrt(max(center_dp, 1))
-    min_dp = max(1, int(center_dp - n_sigma * std))
-    idx_start = max(0, min_dp - 1)
-
-    mass_fracs = np.zeros(len(dps), dtype=float)
-    if idx_start < idx_end:
-        relevant_dps = dps[idx_start:idx_end]
-        mass_fracs[idx_start:idx_end] = (
-            poisson.pmf(relevant_dps, center_dp) * relevant_dps
-        )
-    return mass_fracs
-
-
 def compute_poisson_broadened_mwd(molecular_weights, center_dp,
                                   monomer_mw, sigma, tau = 0.0,
                                   broadening_model = 'egh'):
@@ -100,12 +77,8 @@ def compute_poisson_broadened_mwd(molecular_weights, center_dp,
     with Poisson chain length distribution, broadened by instrumental
     effects.
     """
-    # Select broadening function
-    if broadening_model.lower() == 'emg':
-        broadening_func = emg_broadening
-    elif broadening_model.lower() == 'egh':
-        broadening_func = egh_broadening
-    else:
+    model = broadening_model.lower()
+    if model not in ('emg', 'egh'):
         raise ValueError(f"Unknown broadening model: {broadening_model}")
 
     # Calculate DP range needed (limit to 3x center or data range)
@@ -113,14 +86,22 @@ def compute_poisson_broadened_mwd(molecular_weights, center_dp,
     max_dp_from_center = int(center_dp * 3) + 1
     max_dp = min(max_dp_from_data, max_dp_from_center)
 
-    # Create DP array and compute broadening matrix
     dps = np.arange(1, max_dp, dtype=int)
-    dps_mesh, mws_mesh = np.meshgrid(dps, molecular_weights)
-    dp_mws = dps_mesh * monomer_mw
 
-    broadening_matrix = broadening_func(mws_mesh, dp_mws, sigma, tau)
-    mass_fracs = _poisson_mass_fracs(dps, center_dp)
+    # Use compute_broadening_matrix for EGH (standard path),
+    # fall back to manual meshgrid for EMG (not supported by
+    # compute_broadening_matrix)
+    if model == 'egh':
+        broadening_matrix = compute_broadening_matrix(
+            molecular_weights, dps, monomer_mw, sigma, tau
+        )
+    else:
+        dps_mesh, mws_mesh = np.meshgrid(dps, molecular_weights)
+        broadening_matrix = emg_broadening(
+            mws_mesh, dps_mesh * monomer_mw, sigma, tau
+        )
 
+    mass_fracs = poisson_mass_fracs(dps, center_dp)
     return broadening_matrix @ mass_fracs
 
 
@@ -275,8 +256,8 @@ def _fit_gaussian_fast(log_mws, intensities_norm):
 
 def _calibrate_with_poisson(molecular_weights, intensities_norm,
                             log_mws, broadening_func, max_sigma,
-                            max_tau, monomer_mw, _center_init,
-                            _sigma_init, _tau_init):
+                            max_tau, monomer_mw, center_init,
+                            sigma_init, tau_init):
     """
     Calibrate accounting for natural Poisson dispersity of living chains.
 
@@ -291,27 +272,18 @@ def _calibrate_with_poisson(molecular_weights, intensities_norm,
     3. Estimate instrumental variance: Var_inst = Var_observed - Var_poisson
     4. Use these estimates for single-pass optimization
     """
-    # Stage 1: Fast Gaussian fit using weighted moments (no iteration)
-    center_log, sigma_observed = _fit_gaussian_fast(log_mws, intensities_norm)
-    center_mw = np.exp(center_log)
-    center_dp_init = center_mw / monomer_mw
+    # Stage 1: Refine sigma estimate by subtracting Poisson contribution
+    center_dp_init = center_init / monomer_mw
 
     # Decompose observed variance into Poisson and instrumental components
     # For Poisson(λ), variance in log(MW) space ≈ 1/λ (delta method)
-    var_observed = sigma_observed ** 2
+    var_observed = sigma_init ** 2
     var_poisson = 1.0 / center_dp_init
 
     # Instrumental variance = observed - Poisson contribution
     # Ensure non-negative (can happen if DP is very low)
     var_instrumental = max(0.01**2, var_observed - var_poisson)
     sigma_init_warm = np.sqrt(var_instrumental)
-
-    # Estimate tau from asymmetry (simple heuristic)
-    peak_idx = np.argmax(intensities_norm)
-    left_area = np.trapezoid(intensities_norm[:peak_idx], log_mws[:peak_idx])
-    right_area = np.trapezoid(intensities_norm[peak_idx:], log_mws[peak_idx:])
-    asymmetry = left_area / (right_area + 1e-10)
-    tau_init_warm = max(0.0, min(0.1, (asymmetry - 1) * sigma_init_warm))
 
     # Limit max_dp based on estimated center (3x center covers Poisson tail)
     # This avoids creating unnecessarily large matrices
@@ -329,7 +301,7 @@ def _calibrate_with_poisson(molecular_weights, intensities_norm,
         sigma, tau, center_dp = params
         try:
             broadening_matrix = broadening_func(mws_mesh, dp_mws, sigma, tau)
-            mass_fracs = _poisson_mass_fracs(dps, center_dp)
+            mass_fracs = poisson_mass_fracs(dps, center_dp)
             pred = broadening_matrix @ mass_fracs
             pred_norm = np.trapezoid(pred, log_mws)
             if pred_norm > 0:
@@ -346,7 +318,7 @@ def _calibrate_with_poisson(molecular_weights, intensities_norm,
         (1.0, max_dp)
     ]
 
-    init_guess = [sigma_init_warm, tau_init_warm, center_dp_init]
+    init_guess = [sigma_init_warm, tau_init, center_dp_init]
 
     result = minimize(
         objective,
@@ -360,7 +332,7 @@ def _calibrate_with_poisson(molecular_weights, intensities_norm,
 
     # Calculate R-squared for the fit
     broadening_matrix = broadening_func(mws_mesh, dp_mws, sigma, tau)
-    mass_fracs = _poisson_mass_fracs(dps, center_dp)
+    mass_fracs = poisson_mass_fracs(dps, center_dp)
     pred = broadening_matrix @ mass_fracs
     pred_norm = np.trapezoid(pred, log_mws)
     if pred_norm > 0:

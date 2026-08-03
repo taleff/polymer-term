@@ -338,4 +338,3 @@ def time_to_chain_death(
     else:
         exp = 1 - order
         return ((1-chain_conversion) ** exp - 1) / (-exp)
-

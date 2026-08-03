@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from polyterm.core.kinetics_models import (
+from polyterm.kinetics.models import (
     LIVING_CHAIN_CONC,
     LIVING_CHAIN_DP,
     CONVERSION_TO_TIME,
@@ -11,13 +11,16 @@ from polyterm.core.kinetics_models import (
     CHAIN_DEATH_RATE,
     REQUIRED_KEYS,
     STANDARD_KINETICS,
-    ROMP_FIRST_ORDER_KINETICS,
-    ROMP_SECOND_ORDER_KINETICS,
     validate_kinetics,
     find_chain_death_time,
 )
 
-from polyterm.core.kinetics import (
+from polyterm.kinetics.romp import (
+    ROMP_FIRST_ORDER_KINETICS,
+    ROMP_SECOND_ORDER_KINETICS,
+)
+
+from polyterm.kinetics.base import (
     living_chain_concentration,
     living_chain_dp,
     conversion_to_time,

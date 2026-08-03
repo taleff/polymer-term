@@ -36,22 +36,24 @@ pip install -e ".[dev]"
 
 ### Package Structure
 
+Each top-level module (except `mwd.py`) contains a single user-facing function or set of related functions. All internal logic lives in `core/`.
+
 ```
 polyterm/
 ├── __init__.py          # Public API exports
-├── fit_mwd.py           # Main fitting function (user-facing)
-├── calculate_mwd.py     # Forward calculation of MWD from parameters
-├── estimate_death.py    # Dead chain fraction estimation
-├── calibration.py       # SEC broadening calibration (EMG/EGH)
-├── utils.py             # Utility functions (DPn, R², edge fitting)
-├── core/                # Low-level kinetic calculations
-│   ├── kinetics.py      # Time-dependent kinetic equations
-│   ├── broadening.py    # SEC instrumental broadening (Gaussian/EMG/EGH)
-│   └── distributions.py # DP range and Poisson calculations
-├── models/
-│   └── estimation.py    # Initial parameter estimation for fitting
-└── mwd/
-    └── mwd.py           # MWDResult dataclass
+├── fit_mwd.py           # Fit kinetic model to MWD (user-facing)
+├── calculate_mwd.py     # Forward calculation of MWD from parameters (user-facing)
+├── estimate_alpha.py    # Estimate alpha from conversion vs Mn data (user-facing)
+├── estimate_death.py    # Dead chain fraction estimation (user-facing)
+├── calibration.py       # SEC broadening calibration, EMG/EGH (user-facing)
+├── mwd.py               # MWDResult dataclass
+└── core/                # Internal computation modules
+    ├── kinetics.py      # Analytical kinetic equations (monomer conversion, living chain DP, etc.)
+    ├── kinetics_models.py # Pre-built kinetics dicts (STANDARD, ROMP) and model utilities
+    ├── broadening.py    # SEC instrumental broadening (Gaussian/EMG/EGH)
+    ├── distributions.py # DP range, Poisson calculations, and mass fraction helpers
+    ├── initial_guess.py # Initial alpha estimation for optimizer seeding
+    └── utils.py         # Utility functions (DPn, R², edge fitting)
 ```
 
 ### Key Concepts

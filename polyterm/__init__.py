@@ -82,14 +82,14 @@ from .calibration import (
 )
 
 # Utility functions
-from .utils import (
+from .core.utils import (
     calculate_number_average_dp,
     fit_right_edge,
     calculate_r_squared,
 )
 
 # Core functions (for advanced users)
-from .core import (
+from .kinetics import (
     monomer_conversion,
     living_chain_concentration,
     living_chain_dp,
@@ -97,13 +97,14 @@ from .core import (
 )
 
 # Kinetics models (for custom kinetics)
-from .core import (
+from .kinetics import (
     STANDARD_KINETICS,
     LIVING_CHAIN_CONC,
     LIVING_CHAIN_DP,
     CONVERSION_TO_TIME,
     MONOMER_CONVERSION,
     validate_kinetics,
+    make_romp_kinetics,
 )
 
 __all__ = [
@@ -136,6 +137,7 @@ __all__ = [
     'CONVERSION_TO_TIME',
     'MONOMER_CONVERSION',
     'validate_kinetics',
+    'make_romp_kinetics',
 ]
 
 # Package metadata

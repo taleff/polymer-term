@@ -4,7 +4,7 @@ Tests for core kinetic functions.
 
 import pytest
 import numpy as np
-from polyterm.core.kinetics import (
+from polyterm.kinetics.base import (
     monomer_conversion,
     living_chain_concentration,
     living_chain_dp,

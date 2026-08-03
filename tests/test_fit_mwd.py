@@ -7,11 +7,11 @@ import numpy as np
 from functools import partial
 
 from polyterm import fit_mwd, MWDResult, calculate_mwd
-from polyterm.calculate_mwd import (
-    _get_quadrature_points,
-    _compute_dead_chain_fracs,
+from polyterm.core.mwd_computation import (
+    get_quadrature_points,
+    compute_dead_chain_fracs,
 )
-from polyterm.core.kinetics_models import STANDARD_KINETICS
+from polyterm.kinetics.models import STANDARD_KINETICS
 
 
 class TestQuadratureHelper:
@@ -21,7 +21,7 @@ class TestQuadratureHelper:
         """Test that quadrature returns correct array shapes."""
         n_points = 50
         time_end = 10.0
-        nodes, weights = _get_quadrature_points(n_points, time_end)
+        nodes, weights = get_quadrature_points(n_points, time_end)
 
         assert nodes.shape == (n_points,)
         assert weights.shape == (n_points,)
@@ -30,7 +30,7 @@ class TestQuadratureHelper:
         """Test that nodes are scaled to [0, time_end]."""
         n_points = 50
         time_end = 10.0
-        nodes, weights = _get_quadrature_points(n_points, time_end)
+        nodes, weights = get_quadrature_points(n_points, time_end)
 
         assert np.all(nodes >= 0)
         assert np.all(nodes <= time_end)
@@ -39,7 +39,7 @@ class TestQuadratureHelper:
         """Test that weights sum to the interval length."""
         n_points = 50
         time_end = 10.0
-        nodes, weights = _get_quadrature_points(n_points, time_end)
+        nodes, weights = get_quadrature_points(n_points, time_end)
 
         assert np.isclose(np.sum(weights), time_end, rtol=1e-10)
 
@@ -47,7 +47,7 @@ class TestQuadratureHelper:
         """Test that quadrature integrates low-degree polynomials exactly."""
         n_points = 10
         time_end = 5.0
-        nodes, weights = _get_quadrature_points(n_points, time_end)
+        nodes, weights = get_quadrature_points(n_points, time_end)
 
         f_vals = nodes ** 2
         integral = np.sum(weights * f_vals)
@@ -68,7 +68,7 @@ class TestDeadChainFracs:
         init = 0.005
         order = 1.5
 
-        dead_fracs = _compute_dead_chain_fracs(
+        dead_fracs = compute_dead_chain_fracs(
             time, dps, alpha, init_mon, init, order,
             bn=1.0, combination=0.0, n_quadrature_points=40,
             kinetics=STANDARD_KINETICS
@@ -85,7 +85,7 @@ class TestDeadChainFracs:
         init = 0.005
         order = 1.5
 
-        dead_fracs = _compute_dead_chain_fracs(
+        dead_fracs = compute_dead_chain_fracs(
             time, dps, alpha, init_mon, init, order,
             bn=1.0, combination=0.0, n_quadrature_points=40,
             kinetics=STANDARD_KINETICS
@@ -102,7 +102,7 @@ class TestDeadChainFracs:
         init = 0.005
         order = 1.5
 
-        dead_fracs = _compute_dead_chain_fracs(
+        dead_fracs = compute_dead_chain_fracs(
             time, dps, alpha, init_mon, init, order,
             bn=1.0, combination=0.0, n_quadrature_points=40,
             kinetics=STANDARD_KINETICS
@@ -121,14 +121,14 @@ class TestDeadChainFracs:
         order = 1.5
 
         # Lower quadrature points
-        dead_fracs_low = _compute_dead_chain_fracs(
+        dead_fracs_low = compute_dead_chain_fracs(
             time, dps, alpha, init_mon, init, order,
             bn=1.0, combination=0.0, n_quadrature_points=20,
             kinetics=STANDARD_KINETICS
         )
 
         # Higher quadrature points
-        dead_fracs_high = _compute_dead_chain_fracs(
+        dead_fracs_high = compute_dead_chain_fracs(
             time, dps, alpha, init_mon, init, order,
             bn=1.0, combination=0.0, n_quadrature_points=100,
             kinetics=STANDARD_KINETICS

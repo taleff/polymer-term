@@ -4,7 +4,7 @@ Tests for utility functions in polyterm.utils.
 
 import pytest
 import numpy as np
-from polyterm.utils import (
+from polyterm.core.utils import (
     calculate_number_average_dp,
     fit_right_edge,
     calculate_r_squared,

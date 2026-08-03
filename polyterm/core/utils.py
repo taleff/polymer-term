@@ -9,7 +9,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from typing import Tuple
 
-from .core.broadening import gaussian_broadening
+from .broadening import gaussian_broadening
 
 __all__ = [
     'calculate_number_average_dp',

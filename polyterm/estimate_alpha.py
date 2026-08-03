@@ -9,7 +9,8 @@ extract the ratio of termination to polymerization rate constants
 import numpy as np
 from scipy.optimize import minimize_scalar
 
-from .core.kinetics_models import (
+from .core.utils import calculate_r_squared
+from .kinetics.models import (
     STANDARD_KINETICS,
     CONVERSION_TO_TIME,
     LIVING_CHAIN_DP,
@@ -127,10 +128,7 @@ def estimate_alpha(convs, living_mns, monomer_mw, init_mon, init, order,
     )
     predicted_mns = predicted_dps * monomer_mw
 
-    # R-squared
-    ss_res = np.sum((living_mns - predicted_mns) ** 2)
-    ss_tot = np.sum((living_mns - np.mean(living_mns)) ** 2)
-    r_squared = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+    r_squared = calculate_r_squared(living_mns, predicted_mns)
 
     return {
         'alpha': alpha_fit,

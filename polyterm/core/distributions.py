@@ -6,13 +6,12 @@ distributions for controlled polymerizations with termination.
 """
 
 import numpy as np
-from scipy.stats import poisson, nbinom
-from typing import Tuple
+from scipy.stats import poisson
 
 __all__ = [
     'calculate_dp_range',
     'get_poisson_dp_range',
-    'compute_poisson_mass_fracs',
+    'poisson_mass_fracs',
 ]
 
 
@@ -49,60 +48,36 @@ def get_poisson_dp_range(nup, dps, n_sigma = 6.0):
     return idx
 
 
-def compute_poisson_mass_fracs(
-    dps: np.ndarray,
-    nup: float,
-    n_sigma: float = 6.0
-) -> np.ndarray:
-    """
-    Compute Poisson mass fractions efficiently over a DP array.
-
-    Only computes PMF values in the range where they're significant,
-    setting other values to zero. This is much faster than computing
-    over the full DP range when nup is much smaller than max(dps).
+def poisson_mass_fracs(dps, nup, n_sigma=6.0):
+    """Compute Poisson weight-fraction contributions over the relevant DP range.
 
     Parameters
     ----------
     dps : ndarray
-        Array of degrees of polymerization.
+        Array of degrees of polymerization (monotonically increasing, starting at 1).
     nup : float
-        Poisson parameter (mean/expected DP).
+        Mean of the Poisson distribution (living chain DP).
     n_sigma : float, optional
         Number of standard deviations to include. Default 6.0.
 
     Returns
     -------
-    mass_fracs : ndarray
-        Poisson mass fractions (pmf * dp) at each DP in dps.
-        Same shape as dps.
-
-    Notes
-    -----
-    For a Poisson distribution, mass fractions are pmf(dp) * dp, which
-    represents the weight contribution at each DP.
-
-    Examples
-    --------
-    >>> dps = np.arange(1, 1000)
-    >>> mass_fracs = compute_poisson_mass_fracs(dps, nup=100)
-    >>> print(f"Non-zero range: {np.where(mass_fracs > 0)[0][[0, -1]]}")
+    ndarray
+        Weight fractions (pmf * dp) at each DP, zeroed outside the
+        significant range.
     """
-    result = np.zeros(len(dps), dtype=float)
+    idx_end = get_poisson_dp_range(nup, dps, n_sigma=n_sigma)
+    std = np.sqrt(max(nup, 1))
+    min_dp = max(1, int(nup - n_sigma * std))
+    idx_start = max(0, min_dp - 1)
 
-    # Get the range where Poisson has significant values
-    max_dp = get_poisson_dp_range(nup, dps, n_sigma)
-
-    # Find indices in dps array corresponding to this range
-    # dps is assumed to be contiguous starting from some value
-    dp_start = int(dps[0])
-    idx_end = min(len(dps), max_dp - dp_start + 1)
-
-    if dp_start < idx_end:
-        # Compute only for the relevant range
-        relevant_dps = dps[dp_start:idx_end]
-        result[dp_start:idx_end] = poisson.pmf(relevant_dps, nup) * relevant_dps
-
-    return result
+    mass_fracs = np.zeros(len(dps), dtype=float)
+    if idx_start < idx_end:
+        relevant_dps = dps[idx_start:idx_end]
+        mass_fracs[idx_start:idx_end] = (
+            poisson.pmf(relevant_dps, nup) * relevant_dps
+        )
+    return mass_fracs
 
 
 def calculate_dp_range(

@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 from polyterm import calculate_mwd, fit_mwd, MWDResult
-from polyterm.core.kinetics import monomer_conversion
+from polyterm.kinetics.base import monomer_conversion
 
 
 # Path to test data

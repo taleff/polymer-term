@@ -11,7 +11,7 @@ from scipy.stats import poisson
 from scipy.integrate import quad_vec
 
 from polyterm import calculate_mwd
-from polyterm.core.kinetics import (
+from polyterm.kinetics.base import (
     living_chain_concentration,
     living_chain_dp,
     conversion_to_time,

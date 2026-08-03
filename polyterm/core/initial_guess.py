@@ -1,5 +1,5 @@
 """
-Parameter estimation utilities for kinetic fitting.
+Initial parameter estimation for kinetic fitting.
 
 This module provides functions for estimating kinetic parameters from
 molecular weight distribution characteristics. These estimates serve as
@@ -12,11 +12,11 @@ from scipy.special import lambertw
 from typing import Optional
 
 __all__ = [
-    'estimate_alpha',
+    'estimate_initial_alpha',
 ]
 
 
-def estimate_alpha(
+def estimate_initial_alpha(
     order: float,
     mon_frac: float,
     init: float,
@@ -64,7 +64,7 @@ def estimate_alpha(
     Examples
     --------
     >>> # Estimate alpha for a second-order termination system
-    >>> alpha = estimate_alpha(
+    >>> alpha = estimate_initial_alpha(
     ...     order=2.0,
     ...     mon_frac=0.1,  # 90% conversion
     ...     init=0.01,

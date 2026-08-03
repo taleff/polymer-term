@@ -8,12 +8,12 @@ import pytest
 import numpy as np
 
 from polyterm.estimate_alpha import estimate_alpha, _predicted_living_dps
-from polyterm.core.kinetics_models import (
+from polyterm.kinetics.models import (
     STANDARD_KINETICS,
-    ROMP_FIRST_ORDER_KINETICS,
     LIVING_CHAIN_DP,
     CONVERSION_TO_TIME,
 )
+from polyterm.kinetics.romp import ROMP_FIRST_ORDER_KINETICS
 
 
 # ====================== Fixtures ======================
