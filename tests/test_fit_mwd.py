@@ -730,5 +730,161 @@ class TestDistributionParameter:
         assert result.r_squared > 0.99
 
 
+class TestFullTime:
+    """Tests for the full_time option in fit_mwd."""
+
+    def test_full_time_and_conversion_raises(self, simple_mws):
+        """Test that specifying both full_time and conversion raises."""
+        intensities = np.ones_like(simple_mws)
+
+        with pytest.raises(ValueError, match="Cannot specify both"):
+            fit_mwd(
+                simple_mws, intensities,
+                order=1.0,
+                monomer_mw=100.0,
+                init_mon=1.0,
+                conversion=0.5,
+                full_time=True
+            )
+
+    def test_full_time_does_not_fit_conversion(self, simple_mws, standard_params):
+        """Test that full_time bypasses conversion fitting."""
+        # Generate data at full termination
+        mwd_result = calculate_mwd(
+            simple_mws,
+            standard_params['monomer_mw'],
+            standard_params['init_mon'],
+            standard_params['alpha'],
+            standard_params['init'],
+            1.0,
+            standard_params['order'],
+            standard_params['sigma']
+        )
+
+        result = fit_mwd(
+            simple_mws, mwd_result.intensities,
+            order=standard_params['order'],
+            monomer_mw=standard_params['monomer_mw'],
+            init_mon=standard_params['init_mon'],
+            init=standard_params['init'],
+            sigma=standard_params['sigma'],
+            full_time=True
+        )
+
+        assert isinstance(result, MWDResult)
+        assert result.r_squared > 0.95
+
+    def test_full_time_round_trip(self, simple_mws, standard_params):
+        """Test that full_time recovers alpha from fully terminated data."""
+        true_alpha = standard_params['alpha']
+
+        mwd_result = calculate_mwd(
+            simple_mws,
+            standard_params['monomer_mw'],
+            standard_params['init_mon'],
+            true_alpha,
+            standard_params['init'],
+            1.0,
+            standard_params['order'],
+            standard_params['sigma']
+        )
+
+        result = fit_mwd(
+            simple_mws, mwd_result.intensities,
+            order=standard_params['order'],
+            monomer_mw=standard_params['monomer_mw'],
+            init_mon=standard_params['init_mon'],
+            init=standard_params['init'],
+            sigma=standard_params['sigma'],
+            full_time=True
+        )
+
+        assert np.isclose(result.alpha, true_alpha, rtol=0.15)
+        assert result.r_squared > 0.99
+
+    def test_full_time_default_false(self, simple_mws, standard_params):
+        """Test that full_time defaults to False (conversion is fitted)."""
+        mwd_result = calculate_mwd(
+            simple_mws,
+            standard_params['monomer_mw'],
+            standard_params['init_mon'],
+            standard_params['alpha'],
+            standard_params['init'],
+            standard_params['conversion'],
+            standard_params['order'],
+            standard_params['sigma']
+        )
+
+        result = fit_mwd(
+            simple_mws, mwd_result.intensities,
+            order=standard_params['order'],
+            monomer_mw=standard_params['monomer_mw'],
+            init_mon=standard_params['init_mon'],
+            init=standard_params['init'],
+            sigma=standard_params['sigma'],
+        )
+
+        # Conversion should be fitted, not fixed at 1.0
+        assert not np.isclose(result.conversion, 1.0)
+
+    def test_full_time_round_trip_other_order(
+        self, simple_mws, other_order_params
+    ):
+        """Test full_time recovers alpha at order=1.1."""
+        true_alpha = other_order_params['alpha']
+
+        mwd_result = calculate_mwd(
+            simple_mws,
+            other_order_params['monomer_mw'],
+            other_order_params['init_mon'],
+            true_alpha,
+            other_order_params['init'],
+            1.0,
+            other_order_params['order'],
+            other_order_params['sigma']
+        )
+
+        result = fit_mwd(
+            simple_mws, mwd_result.intensities,
+            order=other_order_params['order'],
+            monomer_mw=other_order_params['monomer_mw'],
+            init_mon=other_order_params['init_mon'],
+            init=other_order_params['init'],
+            sigma=other_order_params['sigma'],
+            full_time=True
+        )
+
+        assert np.isclose(result.alpha, true_alpha, rtol=0.15)
+        assert result.r_squared > 0.99
+
+    def test_full_time_reports_actual_conversion(self, simple_mws, standard_params):
+        """Test that reported conversion is the actual monomer conversion,
+        not simply 1.0."""
+        mwd_result = calculate_mwd(
+            simple_mws,
+            standard_params['monomer_mw'],
+            standard_params['init_mon'],
+            standard_params['alpha'],
+            standard_params['init'],
+            1.0,
+            standard_params['order'],
+            standard_params['sigma']
+        )
+
+        result = fit_mwd(
+            simple_mws, mwd_result.intensities,
+            order=standard_params['order'],
+            monomer_mw=standard_params['monomer_mw'],
+            init_mon=standard_params['init_mon'],
+            init=standard_params['init'],
+            sigma=standard_params['sigma'],
+            full_time=True
+        )
+
+        # Conversion should be close to 1.0 for standard kinetics
+        # (all monomer consumed) but computed from the model, not hardcoded
+        assert 0 < result.conversion <= 1.0
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

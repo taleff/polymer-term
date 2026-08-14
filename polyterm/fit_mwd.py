@@ -10,7 +10,9 @@ from scipy.optimize import differential_evolution
 
 from .kinetics.models import (
     validate_kinetics,
+    find_chain_death_time,
     DEFAULT_COMBINATION,
+    MONOMER_CONVERSION,
     STANDARD_KINETICS,
 )
 
@@ -21,6 +23,7 @@ from .core.mwd_computation import (
     compute_mwd_from_fracs,
     compute_dead_chain_fraction,
     conversion_to_reduced_time,
+    CHAIN_DEATH_FRACTION,
 )
 
 from .core.distributions import get_poisson_dp_range
@@ -44,8 +47,9 @@ __all__ = [
 
 def fit_mwd(molecular_weights, intensities, order, monomer_mw,
             init_mon, *, sigma=None, tau=None, conversion=None,
-            init=None, combination=None, bn=1.0, max_fit_points=500,
-            n_quadrature_points=500, kinetics=STANDARD_KINETICS,
+            full_time=False, init=None, combination=None, bn=1.0,
+            max_fit_points=500, n_quadrature_points=500,
+            kinetics=STANDARD_KINETICS,
             distribution=poisson_distribution, seed=42):
     """
     Fit kinetic model to a molecular weight distribution.
@@ -71,6 +75,14 @@ def fit_mwd(molecular_weights, intensities, order, monomer_mw,
         Gaussian broadening is used.
     conversion : float, optional
         Monomer conversion (0 to 1). If None, will be fitted.
+        Cannot be used together with full_time.
+    full_time : bool, optional
+        If True, assume the reaction has reached full termination
+        (99.99% of chains dead). The time is computed via
+        find_chain_death_time and conversion is not fitted. The
+        actual monomer conversion at that time is reported in the
+        result. Cannot be used together with conversion. Default
+        False.
     init : float, optional
         Initial initiator concentration. If None, will be fitted.
     combination : float or None, optional
@@ -160,6 +172,12 @@ def fit_mwd(molecular_weights, intensities, order, monomer_mw,
         combination = kinetics.get(DEFAULT_COMBINATION, 0.0)
     if not (0 <= combination <= 1):
         raise ValueError("combination must be between 0 and 1")
+    if full_time and conversion is not None:
+        raise ValueError(
+            "Cannot specify both full_time=True and conversion. "
+            "full_time computes the time at which 99.99% of chains "
+            "have terminated, bypassing conversion entirely."
+        )
     if conversion is not None and not (0 <= conversion <= 1):
         raise ValueError("conversion must be between 0 and 1")
     if init is not None and init <= 0:
@@ -186,18 +204,22 @@ def fit_mwd(molecular_weights, intensities, order, monomer_mw,
     idx_end = get_poisson_dp_range(2*nup, dps)
     dps = dps[:idx_end]
 
+    # When full_time is set, fix conversion so it's excluded from fitting
+    effective_conversion = 1.0 if full_time else conversion
+
     # Build parameter specification
     param_spec = _build_param_spec(
         init_mon, order, nu, nup, sigma_est, kinetics,
-        sigma=sigma, conversion=conversion, init=init
+        sigma=sigma, conversion=effective_conversion, init=init
     )
 
     # Create objective function
     objective = _create_objective(
         fit_mws, fit_ints, dps, monomer_mw, init_mon, order, kinetics,
-        sigma=sigma, tau=tau, conversion=conversion, init=init,
-        combination=combination, bn=bn, param_spec=param_spec,
-        n_quadrature_points=n_quadrature_points, distribution=distribution
+        sigma=sigma, tau=tau, conversion=effective_conversion, init=init,
+        full_time=full_time, combination=combination, bn=bn,
+        param_spec=param_spec, n_quadrature_points=n_quadrature_points,
+        distribution=distribution
     )
 
     # Run optimization
@@ -206,8 +228,8 @@ def fit_mwd(molecular_weights, intensities, order, monomer_mw,
     # Build and return result
     return _build_fit_result(
         opt_result, fit_mws, fit_ints, dps, monomer_mw, init_mon, order, kinetics,
-        sigma=sigma, tau=tau, conversion=conversion, init=init,
-        combination=combination, bn=bn,
+        sigma=sigma, tau=tau, conversion=effective_conversion, init=init,
+        full_time=full_time, combination=combination, bn=bn,
         param_spec=param_spec, n_quadrature_points=n_quadrature_points,
         distribution=distribution
     )
@@ -326,8 +348,8 @@ def _build_param_spec(init_mon, order, nu, nup, sigma_est, kinetics, *,
 
 
 def _create_objective(fit_mws, fit_ints, dps, monomer_mw, init_mon, order,
-                      kinetics, *, sigma, tau, conversion, init, combination,
-                      bn, param_spec, n_quadrature_points=100,
+                      kinetics, *, sigma, tau, conversion, init, full_time,
+                      combination, bn, param_spec, n_quadrature_points=100,
                       distribution=poisson_distribution):
     """Create objective function for optimization."""
     # Pre-compute broadening matrix if sigma is fixed
@@ -362,13 +384,18 @@ def _create_objective(fit_mws, fit_ints, dps, monomer_mw, init_mon, order,
                     fit_mws, dps, monomer_mw, sigma_val, 0.0
                 )
 
-            # Compute time from conversion via the kinetics model.
-            # Invalid parameter combinations will produce NaN/Inf or
-            # raise exceptions, which are caught and penalized.
-            time = conversion_to_reduced_time(
-                kinetics, alpha_val, init_mon, init_val, order,
-                conv_val, bn
-            )
+            # Compute time: either from chain death fraction (full_time)
+            # or from monomer conversion via the kinetics model.
+            if full_time:
+                time = find_chain_death_time(
+                    kinetics, alpha_val, init_mon, init_val, order,
+                    CHAIN_DEATH_FRACTION, bn
+                )
+            else:
+                time = conversion_to_reduced_time(
+                    kinetics, alpha_val, init_mon, init_val, order,
+                    conv_val, bn
+                )
 
             if not np.isfinite(time) or time < 0:
                 return 1e10
@@ -480,7 +507,8 @@ def _optimize(objective, param_spec, seed=42):
 
 def _build_fit_result(opt_result, fit_mws, fit_ints, dps, monomer_mw,
                       init_mon, order, kinetics, *, sigma, tau, conversion,
-                      init, combination, bn, param_spec, n_quadrature_points=100,
+                      init, full_time, combination, bn, param_spec,
+                      n_quadrature_points=100,
                       distribution=poisson_distribution):
     """Build FitResult from optimization output."""
     param_names = param_spec['names']
@@ -497,11 +525,22 @@ def _build_fit_result(opt_result, fit_mws, fit_ints, dps, monomer_mw,
     else:
         conversion_val = conversion
 
-    # Compute time from conversion using the kinetics model
+    # Compute time: either from chain death fraction (full_time)
+    # or from monomer conversion via the kinetics model.
     try:
-        time = conversion_to_reduced_time(
-            kinetics, alpha, init_mon, init_val, order, conversion_val, bn
-        )
+        if full_time:
+            time = find_chain_death_time(
+                kinetics, alpha, init_mon, init_val, order,
+                CHAIN_DEATH_FRACTION, bn
+            )
+            # Compute the actual monomer conversion at this time
+            conversion_val = kinetics[MONOMER_CONVERSION](
+                alpha, init_mon, init_val, order, time, bn
+            )
+        else:
+            time = conversion_to_reduced_time(
+                kinetics, alpha, init_mon, init_val, order, conversion_val, bn
+            )
     except (ValueError, ZeroDivisionError):
         time = np.nan
 

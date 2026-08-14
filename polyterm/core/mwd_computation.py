@@ -64,11 +64,46 @@ def get_quadrature_points(n_points, time_end):
     return scaled_nodes, scaled_weights
 
 
+def _get_split_quadrature(n_points, time, kinetics, alpha, init_mon, init,
+                          order, bn):
+    """Get quadrature nodes/weights, splitting at the propagation endpoint.
+
+    When the total time extends well beyond the propagation phase (e.g.
+    full_time mode with slow post-propagation termination), a single
+    Gauss-Legendre interval puts almost no points in the short
+    propagation window where most chain death occurs.  Splitting into
+    two intervals — propagation and aging — gives each phase adequate
+    resolution.
+    """
+    # Find the propagation endpoint (time at 99.99% of max conversion)
+    try:
+        t_prop = kinetics[CONVERSION_TO_TIME](
+            alpha, init_mon, init, order, CHAIN_DEATH_FRACTION, bn
+        )
+    except (ValueError, ZeroDivisionError):
+        t_prop = time
+
+    # Only split if the aging phase is significant
+    if not np.isfinite(t_prop) or t_prop <= 0 or t_prop >= time * 0.99:
+        return get_quadrature_points(n_points, time)
+
+    n_prop = n_points // 2
+    n_aging = n_points - n_prop
+
+    prop_t, prop_w = get_quadrature_points(n_prop, t_prop)
+    aging_t, aging_w = get_quadrature_points(n_aging, time - t_prop)
+    aging_t += t_prop
+
+    return np.concatenate([prop_t, aging_t]), np.concatenate([prop_w, aging_w])
+
+
 def compute_dead_chain_fracs(time, dps, alpha, init_mon, init, order,
                              bn, combination, n_quadrature_points, kinetics,
                              distribution=poisson_distribution):
     """Compute mole fractions of dead chains at each DP using quadrature."""
-    quad_t, quad_w = get_quadrature_points(n_quadrature_points, time)
+    quad_t, quad_w = _get_split_quadrature(
+        n_quadrature_points, time, kinetics, alpha, init_mon, init, order, bn
+    )
 
     # Compute kinetic chain length of the live chain distribution at each time
     nups = np.array([
