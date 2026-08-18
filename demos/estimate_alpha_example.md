@@ -2,7 +2,8 @@
 
 This tutorial demonstrates how to use `estimate_alpha` to determine the termination rate ratio (kt/kp) from the evolution of the peak molecular weight with conversion.
 
-**Full script:** [example_scripts/estimate_alpha_example.py](example_scripts/estimate_alpha_example.py)
+**Full script:** [example_scripts/estimate_alpha_example.py](example_scripts/estimate_alpha_example.py)\
+**Expected runtime:** ~1 second
 
 ## Data
 

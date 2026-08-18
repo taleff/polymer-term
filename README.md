@@ -7,7 +7,9 @@
 
 A Python library for analyzing termination rates in fast-initiating polymerizations. Provides tools for generating molecular weight distributions from kinetic parameters and fitting experimental SEC/GPC data to determine termination kinetics.
 
-![Overview](assets/toc.svg)
+<p align="center">
+  <img src="assets/toc.svg" width="75%">
+</p>
 
 ## System Requirements
 

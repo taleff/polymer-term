@@ -2,7 +2,8 @@
 
 This tutorial demonstrates how to use `estimate_death` to determine the fraction of dead chains in a polymer sample.
 
-**Full script:** [example_scripts/estimate_death_example.py](example_scripts/estimate_death_example.py)
+**Full script:** [example_scripts/estimate_death_example.py](example_scripts/estimate_death_example.py)\
+**Expected runtime:** ~2 seconds
 
 ## Data
 

@@ -2,7 +2,8 @@
 
 This tutorial demonstrates how to use `fit_mwd` to determine the termination kinetics of a polymerization from its SEC trace. It uses data from the group transfer polymerization (GTP) of methyl methacrylate (MMA) at a target DP of 500.
 
-**Full script:** [example_scripts/fit_mwd_example.py](example_scripts/fit_mwd_example.py)
+**Full script:** [example_scripts/fit_mwd_example.py](example_scripts/fit_mwd_example.py)\
+**Expected runtime:** ~4 minutes
 
 ## Data
 

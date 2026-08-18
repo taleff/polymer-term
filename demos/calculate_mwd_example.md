@@ -2,7 +2,8 @@
 
 This tutorial demonstrates how to use `calculate_mwd` to generate theoretical molecular weight distributions for a fast-initiating polymerization with termination.
 
-**Full script:** [example_scripts/calculate_mwd_example.py](example_scripts/calculate_mwd_example.py)
+**Full script:** [example_scripts/calculate_mwd_example.py](example_scripts/calculate_mwd_example.py)\
+**Expected runtime:** ~1 second
 
 ## Background
 

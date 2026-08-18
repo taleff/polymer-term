@@ -2,7 +2,8 @@
 
 This tutorial demonstrates how to calibrate the instrumental line broadening of a size exclusion chromatography (SEC) system using `calibrate_egh_broadening`. The fitted broadening parameters (`sigma` and `tau`) can be used as inputs to other functions within the library.
 
-**Full script:** [example_scripts/calibrate_egh_broadening_example.py](example_scripts/calibrate_egh_broadening_example.py)
+**Full script:** [example_scripts/calibrate_egh_broadening_example.py](example_scripts/calibrate_egh_broadening_example.py)\
+**Expected runtime:** ~10 seconds
 
 ## Data
 
