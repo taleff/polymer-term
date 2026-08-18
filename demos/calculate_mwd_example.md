@@ -1,12 +1,12 @@
 # Calculating Theoretical Molecular Weight Distributions
 
-This tutorial demonstrates how to use `calculate_mwd` to generate theoretical molecular weight distributions for a fast-initiating polymerization with termination. It reproduces Figure 2 from [Taleff & Guironnet, "Quantifying Livingness..."](https://doi.org/TODO).
+This tutorial demonstrates how to use `calculate_mwd` to generate theoretical molecular weight distributions for a fast-initiating polymerization with termination.
 
 **Full script:** [example_scripts/calculate_mwd_example.py](example_scripts/calculate_mwd_example.py)
 
 ## Background
 
-The shape of a molecular weight distribution encodes information about the termination kinetics of a polymerization. As chains terminate, they stop growing and accumulate as a low-MW tail. The `calculate_mwd` function computes the theoretical MWD given kinetic parameters, including the decomposition into living and dead chain populations.
+The shape of a molecular weight distribution encodes information about the termination kinetics of a polymerization. As chains terminate, they stop growing and accumulate as a low-MW tail. The `calculate_mwd` function computes the theoretical MWD given kinetic parameters.
 
 ## Step 1: Define kinetic parameters
 
@@ -24,7 +24,7 @@ tau = 0.0456             # SEC tailing parameter
 
 The key parameter is `alpha` (kt/kp), which determines how much termination occurs. A smaller alpha means a more living polymerization.
 
-## Step 2: Calculate the MWD at a single conversion
+## Step 2: Calculate the MWD
 
 ```python
 from polyterm import calculate_mwd
@@ -67,6 +67,4 @@ As conversion increases:
 - The dead chain tail (red) grows as more chains terminate
 - The total distribution develops an increasingly asymmetric shape with visible tailing
 
-## Key observations
-
-Even a small amount of visible tailing can correspond to a large fraction of dead chains. At 80% conversion with these parameters, a significant portion of chains have terminated despite the distribution still appearing relatively narrow. This is why quantitative analysis of the MWD shape is more informative than simple dispersity measurements.
+![MWD at different conversions](example_figures/calculate_mwd.svg)

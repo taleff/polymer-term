@@ -81,6 +81,7 @@
                 pip
                 numpy
                 scipy
+                mpmath
                 pytest
               ])
               ++ [ self.formatter.${system} ];

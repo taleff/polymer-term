@@ -1,12 +1,8 @@
 # Fitting a Kinetic Model to an Experimental MWD
 
-This tutorial demonstrates how to use `fit_mwd` to determine the termination kinetics of a polymerization from its SEC trace. It uses data from the group transfer polymerization (GTP) of methyl methacrylate (MMA) at a target DP of 500, as reported in Table 1 of [Taleff & Guironnet, "Quantifying Livingness..."](https://doi.org/TODO).
+This tutorial demonstrates how to use `fit_mwd` to determine the termination kinetics of a polymerization from its SEC trace. It uses data from the group transfer polymerization (GTP) of methyl methacrylate (MMA) at a target DP of 500.
 
 **Full script:** [example_scripts/fit_mwd_example.py](example_scripts/fit_mwd_example.py)
-
-## Background
-
-The `fit_mwd` function fits a kinetic model to an experimental molecular weight distribution to extract the termination rate ratio alpha (kt/kp). It uses differential evolution for global optimization followed by local refinement, making it robust against local minima.
 
 ## Data
 
@@ -95,4 +91,4 @@ ax.plot(result.molecular_weights,
         'r--', alpha=0.6, label='Dead chains')
 ```
 
-The fit decomposes the observed MWD into living and dead chain populations, allowing quantitative assessment of the polymerization's livingness.
+![MWD fit](example_figures/fit_mwd.svg)

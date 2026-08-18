@@ -1,14 +1,8 @@
 # Estimating Alpha from Peak Molecular Weight vs Conversion
 
-This tutorial demonstrates how to use `estimate_alpha` to determine the termination rate ratio (kt/kp) from the evolution of the peak molecular weight with conversion. It uses the same timed aliquot data shown in Figure 6c of [Taleff & Guironnet, "Quantifying Livingness..."](https://doi.org/TODO).
+This tutorial demonstrates how to use `estimate_alpha` to determine the termination rate ratio (kt/kp) from the evolution of the peak molecular weight with conversion.
 
 **Full script:** [example_scripts/estimate_alpha_example.py](example_scripts/estimate_alpha_example.py)
-
-## Background
-
-A common check for livingness is to plot the number-average molecular weight (Mn) against conversion — a linear relationship is taken as evidence of living behavior. However, as shown in the paper, Mn is insensitive to termination because the shorter dead chains and longer living chains offset each other.
-
-The peak molecular weight (Mp), on the other hand, tracks the living chain population. When termination is present, Mp diverges upward from the theoretical Mn because the surviving chains grow longer as terminated chains no longer consume monomer. The `estimate_alpha` function exploits this divergence to estimate alpha.
 
 ## Data
 
@@ -32,8 +26,6 @@ peaks = np.array([
 ```
 
 ## Step 2: Calculate conversions
-
-The conversions at each time point must be known independently (e.g., from gravimetry or gas chromatography). Here, we calculate them from the known kinetics:
 
 ```python
 from polyterm import monomer_conversion
@@ -60,32 +52,19 @@ print(f'Estimated alpha: {result["alpha"]:.5f} M')
 print(f'R-squared:       {result["r_squared"]:.4f}')
 ```
 
-For this experiment, the known alpha (kt/kp) is 0.00666 M. The estimate_alpha function recovers 0.00668 M, demonstrating excellent agreement.
-
 ## Step 4: Visualize
 
 ```python
-pred_mn = 104.15 * (init_mon / init)  # theoretical Mn (no termination)
+pred_mn = monomer_mw * (init_mon / init)  # theoretical Mn (no termination)
 
 ax.plot([0, 1], [0, pred_mn / 1000], 'r-', alpha=0.4,
-        label='Theoretical Mn (no termination)')
+        label='Theory Mn')
 ax.plot(convs, result['predicted_mns'] / 1000, 'b-', alpha=0.5,
         label=f'Theory Mp')
 ax.plot(convs, peaks / 1000, 'ks', markersize=6,
-        label='Measured Mp')
+        label='Meas. Mp')
 ```
 
-## When to use this method
+![Alpha estimation](example_figures/estimate_alpha.svg)
 
-`estimate_alpha` is most useful when:
-- Multiple samples at different conversions are available (e.g., timed aliquots)
-- The termination reaction order is known
-- A quick estimate of alpha is needed without full MWD fitting
-
-For a single sample, use `fit_mwd` instead.
-
-## Limitations
-
-- Requires at least 3-4 data points across a range of conversions
-- Assumes Mp is a good proxy for the living chain Mn, which becomes less accurate at high conversions where the living and dead peaks overlap significantly
-- Requires independently measured conversions
+Note that we assume Mp is a good proxy for the living chain Mn, which becomes less accurate at high conversions where the living and dead peaks overlap significantly

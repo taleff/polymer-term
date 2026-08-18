@@ -1,12 +1,8 @@
 # Calibrating SEC Line Broadening
 
-This tutorial demonstrates how to calibrate the instrumental line broadening of a size exclusion chromatography (SEC) system using `calibrate_egh_broadening`. The fitted broadening parameters (`sigma` and `tau`) are used as inputs for `fit_mwd` and `estimate_death`.
+This tutorial demonstrates how to calibrate the instrumental line broadening of a size exclusion chromatography (SEC) system using `calibrate_egh_broadening`. The fitted broadening parameters (`sigma` and `tau`) can be used as inputs to other functions within the library.
 
 **Full script:** [example_scripts/calibrate_egh_broadening_example.py](example_scripts/calibrate_egh_broadening_example.py)
-
-## Background
-
-Even a perfectly monodisperse sample produces a peak with finite width when measured by SEC. This instrumental broadening must be accounted for when analyzing molecular weight distributions. The Exponential Gaussian Hybrid (EGH) model ([Lan & Jorgenson, 2001](https://doi.org/10.1016/S0021-9673(01)00594-5)) captures both the symmetric Gaussian component (`sigma`) and asymmetric tailing (`tau`).
 
 ## Data
 
@@ -29,27 +25,13 @@ mws, ints = load_gpc_trace(
 
 ## Step 2: Calibrate broadening
 
-For a high-DP polystyrene standard, the intrinsic Poisson chain length distribution is negligibly narrow compared to the instrumental broadening. In this case, `monomer_mw` is not needed:
+For a high degree of polymerization polystyrene standard, the intrinsic Poisson chain length distribution is negligibly narrow compared to the instrumental broadening. According to Flory's result, the expected dispersity is only approximately 1.001 (much smaller than the measured dispersity). Here we measure that effect.
 
 ```python
-from polyterm import calibrate_egh_broadening
-
-result = calibrate_egh_broadening(mws, ints)
-print(f'Sigma: {result.sigma:.4f}')
-print(f'Tau:   {result.tau:.4f}')
+result_poisson = calibrate_egh_broadening(mws, ints, monomer_mw=104.15)
 ```
 
-## Step 3: Poisson-corrected calibration (optional)
-
-When calibrating with a living polymer standard at low DP, the Poisson distribution contributes measurable width to the observed peak. Providing `monomer_mw` accounts for this:
-
-```python
-result = calibrate_egh_broadening(mws, ints, monomer_mw=104.15)
-```
-
-This is important when the standard has a DP below ~200, where the Poisson width becomes comparable to instrumental broadening.
-
-## Step 4: Visualize the fit
+## Step 3: Visualize the fit
 
 ```python
 from polyterm import compute_poisson_broadened_mwd
@@ -64,6 +46,8 @@ broadened = compute_poisson_broadened_mwd(
 ax.plot(mws, ints / np.max(ints), 'k-', label='Measured')
 ax.plot(mws, broadened / np.max(broadened), 'b--', label='EGH Fit')
 ```
+
+![EGH broadening calibration](example_figures/calibrate_egh_broadening.svg)
 
 ## Using the results
 

@@ -1,12 +1,8 @@
 # Estimating the Dead Chain Fraction
 
-This tutorial demonstrates how to use `estimate_death` to determine the fraction of dead chains in a polymer sample. It uses timed aliquots from the continuously quenched anionic polymerization of styrene, as shown in Figure 6 of [Taleff & Guironnet, "Quantifying Livingness..."](https://doi.org/TODO).
+This tutorial demonstrates how to use `estimate_death` to determine the fraction of dead chains in a polymer sample.
 
 **Full script:** [example_scripts/estimate_death_example.py](example_scripts/estimate_death_example.py)
-
-## Background
-
-The `estimate_death` function provides a mechanism-agnostic estimate of the dead chain fraction by fitting the high-MW edge of the molecular weight distribution. Unlike `fit_mwd`, it does not require knowledge of the termination reaction order, making it broadly applicable. The trade-off is that it provides a lower bound on the true dead fraction because some dead chains overlap with the living chain peak.
 
 ## Data
 
@@ -69,6 +65,8 @@ kt = 0.0773  # 1/min
 ax.plot([0, 25], [0, 25 * kt], 'r--', label=f'Theory (kt={kt})')
 ```
 
-## Limitations
+![Dead chain decomposition](example_figures/estimate_death.svg)
 
-As discussed in the paper, this method underestimates the true dead chain fraction because dead chains whose molecular weight falls within the living chain peak cannot be resolved. The underestimate is small when the dead fraction is low, but becomes significant above ~50% dead chains. For a more accurate (but model-dependent) estimate, use `fit_mwd`.
+![Dead fraction kinetics](example_figures/estimate_death_kinetics.svg)
+
+This method underestimates the true dead chain fraction because dead chains whose molecular weight falls within the living chain peak cannot be resolved. The underestimate is small when the dead fraction is low, but becomes significant above ~50% dead chains.

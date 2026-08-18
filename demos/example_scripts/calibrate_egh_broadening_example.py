@@ -21,19 +21,7 @@ mws, ints = load_gpc_trace(
     bounds=(5e3, 8e5)
 )
 
-# --- Calibrate broadening ---
-# The calibration fits an Exponential Gaussian Hybrid (EGH) peak
-# to the standard. Since this is a polystyrene standard with high
-# DP, the Poisson contribution to peak width is negligible, so
-# monomer_mw is not needed.
-result = calibrate_egh_broadening(mws, ints)
-
-print(f'Sigma:    {result.sigma:.4f}')
-print(f'Tau:      {result.tau:.4f}')
-print(f'Center:   {result.center:.1f} g/mol')
-print(f'R-squared: {result.r_squared:.4f}')
-
-# --- Calibrate with Poisson correction ---
+# --- Calibrate ---
 # When calibrating with a living polymer standard at low DP, the
 # Poisson chain length distribution contributes measurable width.
 # Providing monomer_mw accounts for this, yielding more accurate
