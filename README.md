@@ -102,7 +102,7 @@ This library was ideated by Professor Damien Guironnet and Michael Taleff. The l
 
 If you use polyterm in your research, please cite our paper (currently under review):
 
-> Taleff, M.; Guironnet, D. Quantifying Livingness in Fast-Initiating Chain-Growth Polymerizations. *Manuscript in preparation*.
+> Taleff, M.; Guironnet, D. Determining the Precision of Living Polymerizations via the Molecular Weight Distribution. *Manuscript in preparation*.
 
 This section will be updated with the full citation and DOI upon publication.
 
