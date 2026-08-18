@@ -2,25 +2,36 @@
 
 A Python library for analyzing termination rates in fast-initiating polymerizations. Provides tools for generating molecular weight distributions from kinetic parameters and fitting experimental SEC/GPC data to determine termination kinetics.
 
-## Features
+## System Requirements
 
-- **Generate theoretical MWDs** from kinetic parameters
-- **Fit experimental SEC/GPC data** to determine termination kinetics
-- **Calibrate instrument broadening** using EMG or EGH models
-- **Estimate dead chain fraction** from experimental distributions
-- **Flexible termination models**: supports arbitrary termination orders
-- **Comprehensive kinetic calculations** for living polymerizations with termination
-- **Unit-agnostic**: works with any consistent unit system
+### Hardware Requirements
+
+This package is able to run on a modern (2025) laptop equipped with 16 GB of RAM. This package has not been tested on other platforms. No special hardware is required.
+
+### Software Requirements
+
+This package is supported on recent versions of Windows, MacOS, and Linux. It has been tested on the following operating systems.
+- macOS Tahoe (26.5.2)
+- Windows 11 (25H2)
+
+The following dependencies are required:
+- numpy
+- scipy
+- mpmath
 
 ## Installation
+
+To install this package, use the following commands in your command line. You can also go directly to [the repository](https://github.com/taleff/polymer-term) and click on the green "< > Code" button to download a .zip file containing all the source code directly. Installation time is mainly bottlenecked by how fast you can download the package.
 
 ### From source
 
 ```bash
-git clone https://github.com/yourusername/polyterm.git
-cd polyterm
+git clone https://github.com/taleff/polymer-term.git
+cd polymer-term
 pip install -e .
 ```
+
+If you would like to run any of the tests or test modifications to the package, install the development dependencies.
 
 ### With development dependencies
 
@@ -28,505 +39,45 @@ pip install -e .
 pip install -e ".[dev]"
 ```
 
-## Quick Start
+**For Advanced Users**
 
-### Fitting Experimental Data
-
-```python
-import numpy as np
-from polyterm import fit_mwd
-
-# Load your SEC/GPC data
-molecular_weights = np.array([...])  # in g/mol
-intensities = np.array([...])        # detector response
-
-# Fit kinetic model to determine termination parameters
-result = fit_mwd(
-    molecular_weights, intensities,
-    order=1.5,              # termination reaction order
-    monomer_mw=104.15,      # g/mol
-    init_mon=1.0            # mol/L (or any consistent unit)
-)
-
-# View results
-print(f"alpha (kt/kp) = {result.alpha:.6f}")
-print(f"[I]_0 = {result.init:.6f} mol/L")
-print(f"Conversion = {result.conversion:.2%}")
-print(f"R^2 = {result.r_squared:.6f}")
-print(f"Dead chains = {result.dead_chain_fraction:.2%}")
-```
-
-### Calibrating Instrument Broadening
-
-Before fitting experimental data, calibrate your instrument using a narrow molecular weight standard:
-
-```python
-from polyterm import calibrate_emg_broadening, calibrate_egh_broadening
-
-# Load narrow standard data
-standard_mws = np.array([...])
-standard_ints = np.array([...])
-
-# Calibrate using EMG (Exponentially Modified Gaussian) model
-emg_result = calibrate_emg_broadening(standard_mws, standard_ints)
-print(f"sigma = {emg_result.sigma:.4f}")
-print(f"tau = {emg_result.tau:.4f}")
-print(f"R^2 = {emg_result.r_squared:.4f}")
-
-# Or use EGH (Exponential-Gaussian Hybrid) model - more numerically stable
-egh_result = calibrate_egh_broadening(standard_mws, standard_ints)
-```
-
-For living polymer standards where Poisson broadening is significant:
-
-```python
-# Calibrate accounting for Poisson chain length distribution
-egh_result = calibrate_egh_broadening(
-    standard_mws, standard_ints,
-    monomer_mw=104.15  # enables Poisson-aware fitting
-)
-```
-
-### Fitting with Calibrated Broadening
-
-```python
-from polyterm import fit_mwd, calibrate_egh_broadening
-
-# Step 1: Calibrate from narrow standard
-cal_result = calibrate_egh_broadening(standard_mws, standard_ints)
-
-# Step 2: Fit experimental data with calibrated broadening
-result = fit_mwd(
-    mws, ints,
-    order=1.5,
-    monomer_mw=104.15,
-    init_mon=1.0,
-    sigma=cal_result.sigma,
-    tau=cal_result.tau
-)
-
-print(f"kt/kp = {result.alpha:.4f}")
-print(f"Conversion = {result.conversion:.2%}")
-print(f"R^2 = {result.r_squared:.4f}")
-```
-
-### Generating Theoretical Distributions
-
-```python
-from polyterm import calculate_mwd
-import numpy as np
-
-# Define MW range
-mws = np.logspace(3, 6, 500)  # 1k to 1M Da
-
-# Generate MWD from kinetic parameters
-result = calculate_mwd(
-    molecular_weights=mws,
-    monomer_mw=104.15,    # g/mol
-    init_mon=1.0,         # mol/L
-    alpha=0.01,           # kt/kp ratio
-    init=0.02,            # mol/L
-    conversion=0.95,      # monomer conversion
-    order=1.5,            # termination order
-    sigma=0.05            # SEC broadening
-)
-
-# Access predicted distribution
-print(f"Dead chain fraction = {result.dead_chain_fraction:.2%}")
-```
-
-### Estimating Dead Chain Fraction
-
-When you have calibrated broadening parameters and want to estimate the dead chain contribution without full kinetic fitting:
-
-```python
-from polyterm import estimate_death, calibrate_egh_broadening
-
-# Calibrate instrument from narrow standard
-cal = calibrate_egh_broadening(standard_mws, standard_ints)
-
-# Estimate dead chains from experimental MWD
-result = estimate_death(
-    sample_mws, sample_ints,
-    sigma=cal.sigma,
-    tau=cal.tau,
-    monomer_mw=104.15  # optional: enables Poisson-broadened fitting
-)
-
-print(f"Dead chain fraction = {result.dead_chain_fraction:.2%}")
-```
-
-### Fitting with Known Parameters
-
-```python
-# Fit with known conversion (measured separately)
-result = fit_mwd(
-    mws, ints,
-    order=1.5,
-    monomer_mw=104.15,
-    init_mon=1.0,
-    conversion=0.95  # known from gravimetry
-)
-
-# Fit with known initiator concentration
-result = fit_mwd(
-    mws, ints,
-    order=1.5,
-    monomer_mw=104.15,
-    init_mon=1.0,
-    init=0.02  # known from formulation
-)
-```
-
-### Batch Processing
-
-```python
-from functools import partial
-from polyterm import fit_mwd
-
-# Create partially applied function for your instrument
-fit_my_instrument = partial(
-    fit_mwd,
-    monomer_mw=104.15,
-    init_mon=1.0,
-    sigma=0.05,
-    tau=0.02
-)
-
-# Process multiple samples
-results = [
-    fit_my_instrument(mws, ints, order=1.5)
-    for mws, ints in samples
-]
-```
-
-## Important: Unit Consistency
-
-**All parameters must use consistent units throughout.** The library is unit-agnostic, but mixing units will give incorrect results.
-
-### Example: SI Units
-```python
-# If monomer_mw is in g/mol:
-monomer_mw = 104.15      # g/mol
-init_mon = 1.0           # mol/L
-init = 0.02              # mol/L
-# Then kp, kt must be in L/(mol*s) and molecular_weights in g/mol
-```
-
-### Example: Different Units
-```python
-# If monomer_mw is in Da:
-monomer_mw = 104150      # Da (Daltons)
-init_mon = 1000          # mmol/L
-init = 20                # mmol/L
-# Then molecular_weights must be in Da
-```
-
-## Theoretical Background
-
-This library implements kinetic models for controlled living polymerizations with chain termination, assuming:
-
-- **Fast initiation**: all chains start growing simultaneously
-- **No chain transfer**: termination is the only chain-stopping event
-- **First-order propagation**: growth rate proportional to [M][P*]
-- **Nth-order termination**: termination rate proportional to [P*]^n
-
-The molecular weight distribution is calculated by:
-1. Computing living and dead chain distributions at discrete DPs
-2. Applying broadening for SEC instrumental effects (EMG or EGH model)
-3. Converting from number to weight distribution
-
-### Key Parameters
-
-- **alpha**: Ratio of termination to propagation rate constants (kt/kp)
-- **nu**: Kinetic chain length, ([M]_0 - [M]) / [I]_0
-- **order**: Termination reaction order (typically 1.0, 1.5, or 2.0)
-- **sigma**: SEC line broadening (std dev in log MW space)
-- **tau**: Exponential tailing parameter for asymmetric broadening
-- **bn**: Inverse propagation order in living chains (usually 1.0)
-- **combination**: Whether termination occurs by bimolecular combination
-
-## API Reference
-
-### Main Functions
-
-#### `fit_mwd(molecular_weights, intensities, order, monomer_mw, init_mon, **kwargs) -> MWDResult`
-
-Fit kinetic model to molecular weight distribution data.
-
-**Required Parameters:**
-- `molecular_weights`: Array of MW values from SEC/GPC
-- `intensities`: Array of detector response (weight fraction)
-- `order`: Termination reaction order (e.g., 1.0, 1.5, 2.0)
-- `monomer_mw`: Molecular weight of one monomer unit
-- `init_mon`: Initial monomer concentration
-
-**Optional Parameters:**
-- `sigma`: SEC broadening parameter (if None, fitted)
-- `tau`: EGH/EMG tailing parameter (requires sigma)
-- `conversion`: Monomer conversion (if None, fitted)
-- `init`: Initiator concentration (if None, fitted)
-- `combination`: Whether termination by chain combination (default False)
-- `bn`: Inverse propagation order (default 1.0)
-- `max_fit_points`: Max points for fitting (default 500)
-- `n_quadrature_points`: Quadrature points for integration (default 40)
-
-**Returns:** `MWDResult` with fitted parameters and diagnostics
-
-#### `calculate_mwd(molecular_weights, monomer_mw, init_mon, alpha, init, conversion, order, sigma, tau=0, ...) -> MWDResult`
-
-Calculate theoretical MWD from kinetic parameters.
-
-**Required Parameters:**
-- `molecular_weights`: Array of MW values for calculation
-- `monomer_mw`: Molecular weight of one monomer unit
-- `init_mon`: Initial monomer concentration
-- `alpha`: Ratio kt/kp of rate constants
-- `init`: Initial initiator concentration
-- `conversion`: Monomer conversion (0 to 1)
-- `order`: Order of termination reaction
-- `sigma`: SEC line broadening parameter
-
-**Optional Parameters:**
-- `tau`: SEC tailing parameter (default 0)
-- `combination`: Whether termination by combination (default False)
-- `bn`: Inverse propagation order (default 1.0)
-- `n_quadrature_points`: Quadrature points for integration (default 40)
-
-**Returns:** `MWDResult` with the calculated distribution
-
-#### `estimate_death(molecular_weights, intensities, sigma, tau, monomer_mw=None) -> MWDResult`
-
-Estimate dead chain fraction by fitting the right edge of an MWD.
-
-**Required Parameters:**
-- `molecular_weights`: Array of MW values from SEC/GPC
-- `intensities`: Array of detector response (weight fractions)
-- `sigma`: Gaussian broadening parameter (from calibration)
-- `tau`: Exponential tailing parameter (0 for symmetric Gaussian)
-
-**Optional Parameters:**
-- `monomer_mw`: Molecular weight of one monomer unit. If provided, uses Poisson-broadened fitting for more accurate results at low DP.
-
-**Returns:** `MWDResult` with living/dead distributions and dead chain fraction
-
-#### `calibrate_emg_broadening(molecular_weights, intensities, max_sigma=0.5, max_tau=0.2, monomer_mw=None) -> CalibrationResult`
-
-Calibrate SEC broadening using EMG (Exponentially Modified Gaussian) model from a narrow standard.
-
-**Optional Parameters:**
-- `monomer_mw`: If provided, accounts for Poisson dispersity of living polymer standards
-
-**Returns:** `CalibrationResult` with `sigma`, `tau`, `center`, `r_squared`
-
-#### `calibrate_egh_broadening(molecular_weights, intensities, max_sigma=0.5, max_tau=0.2, monomer_mw=None) -> CalibrationResult`
-
-Calibrate SEC broadening using EGH (Exponential-Gaussian Hybrid) model. More numerically stable for asymmetric peaks.
-
-**Optional Parameters:**
-- `monomer_mw`: If provided, accounts for Poisson dispersity of living polymer standards
-
-**Returns:** `CalibrationResult` with `sigma`, `tau`, `center`, `r_squared`
-
-#### `compute_poisson_broadened_mwd(molecular_weights, center_dp, monomer_mw, sigma, tau=0.0, broadening_model='egh')`
-
-Compute a Poisson-broadened MWD for a living polymer with given center DP.
-
-**Returns:** Array of intensities at each molecular weight
-
-### Main Classes
-
-#### `MWDResult`
-
-Immutable container for MWD results (from fitting, calculation, or estimation).
-
-**Attributes:**
-- `molecular_weights`: MW array
-- `intensities`: Total intensity distribution
-- `dead_chain_intensities`: Dead chain contribution
-- `live_chain_intensities`: Living chain contribution
-- `dead_chain_fraction`: Fraction of terminated chains
-- `alpha`: kt/kp ratio (None if not fitted)
-- `init`: Initiator concentration (None if not fitted)
-- `order`: Termination order used (None if not applicable)
-- `sigma`: Broadening parameter (None if not applicable)
-- `tau`: Tailing parameter (None if not applicable)
-- `conversion`: Monomer conversion (None if not fitted)
-- `r_squared`: Coefficient of determination (None if not fitted)
-
-#### `CalibrationResult`
-
-Immutable container for calibration results.
-
-**Attributes:**
-- `sigma`: Gaussian standard deviation in log(MW) space
-- `tau`: Exponential decay/tailing parameter
-- `center`: Fitted peak center MW
-- `r_squared`: Fit quality metric
-
-### Utility Functions
-
-- `calculate_number_average_dp(mws, intensities, monomer_mw)`: Calculate DPn from distribution
-- `fit_right_edge(mws, intensities, monomer_mw)`: Estimate peak DP and broadening from right edge
-- `calculate_r_squared(observed, predicted)`: Calculate coefficient of determination
-
-### Core Functions (Advanced Users)
-
-Low-level kinetic functions for custom calculations:
-
-- `monomer_conversion(times, kp, kt, init_mon, init, order, bn)`: Monomer concentration vs time
-- `living_chain_concentration(init, order, time)`: [P*] vs reduced time
-- `living_chain_dp(alpha, init_mon, init, order, time, bn)`: DP of living chains
-- `conversion_to_time(alpha, init, order, conversion, bn)`: Convert conversion to reduced time
-
-## Examples
-
-### Example 1: Complete Workflow
-
-```python
-import numpy as np
-from polyterm import (
-    fit_mwd,
-    calibrate_egh_broadening,
-)
-
-# Load calibration standard data
-standard_mws = np.loadtxt('standard_mws.txt')
-standard_ints = np.loadtxt('standard_ints.txt')
-
-# Calibrate instrument
-cal = calibrate_egh_broadening(standard_mws, standard_ints)
-print(f"Calibration: sigma={cal.sigma:.4f}, tau={cal.tau:.4f}, R^2={cal.r_squared:.4f}")
-
-# Load experimental data
-mws = np.loadtxt('sample_mws.txt')
-ints = np.loadtxt('sample_ints.txt')
-
-# Fit kinetics with calibrated broadening
-result = fit_mwd(
-    mws, ints,
-    order=1.5,
-    monomer_mw=104.15,
-    init_mon=1.0,
-    sigma=cal.sigma,
-    tau=cal.tau
-)
-
-print(f"\nFitted Parameters:")
-print(f"alpha (kt/kp) = {result.alpha:.6f}")
-print(f"[I]_0 = {result.init:.6f} mol/L")
-print(f"Conversion = {result.conversion:.2%}")
-print(f"R^2 = {result.r_squared:.6f}")
-print(f"Dead chain fraction = {result.dead_chain_fraction:.2%}")
-```
-
-### Example 2: Comparing Theory and Experiment
-
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-from polyterm import fit_mwd
-
-# Load experimental data
-mws_exp = np.loadtxt('sample_mws.txt')
-ints_exp = np.loadtxt('sample_ints.txt')
-
-# Fit model
-result = fit_mwd(
-    mws_exp, ints_exp,
-    order=1.5,
-    monomer_mw=104.15,
-    init_mon=1.0,
-    sigma=0.05
-)
-
-# Plot comparison
-plt.figure(figsize=(10, 6))
-plt.semilogx(result.molecular_weights, ints_exp / np.max(ints_exp),
-             'o', label='Experimental', markersize=4)
-plt.semilogx(result.molecular_weights, result.intensities,
-             '-', label=f'Fit (R^2 = {result.r_squared:.4f})', linewidth=2)
-plt.semilogx(result.molecular_weights, result.dead_chain_intensities,
-             '--', label='Dead chains', linewidth=1)
-plt.semilogx(result.molecular_weights, result.live_chain_intensities,
-             '--', label='Living chains', linewidth=1)
-plt.xlabel('Molecular Weight (g/mol)')
-plt.ylabel('Weight Fraction')
-plt.legend()
-plt.title(f'alpha = {result.alpha:.6f}, order = {result.order:.2f}')
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
-```
-
-### Example 3: Exploring Parameter Space
-
-```python
-import numpy as np
-from polyterm import calculate_mwd
-
-# Define MW range
-mws = np.logspace(3, 6, 500)
-
-# Generate MWDs for different alpha values
-alphas = [0.001, 0.01, 0.1]
-
-for alpha in alphas:
-    result = calculate_mwd(
-        molecular_weights=mws,
-        monomer_mw=104.15,
-        init_mon=1.0,
-        alpha=alpha,
-        init=0.01,
-        conversion=0.95,
-        order=1.5,
-        sigma=0.05
-    )
-    print(f"alpha = {alpha:.4f}: dead fraction = {result.dead_chain_fraction:.2%}")
-```
-
-## Testing
-
-Run the test suite:
+If you use Nix, create a virtual environment as follows.
 
 ```bash
-pytest
+nix develop
+pip install -e ".[dev]"
 ```
 
-With coverage:
+## Usage
 
-```bash
-pytest --cov=polyterm --cov-report=html
-```
+Polyterm provides a number of functions useful for analyzing and generating molecular weight distributions. The following is a list of the primary functions that users can use, along with a link to a demonstration that provides basic usage examples.
 
-## Limitations
+- [calculate_mwd](demos/calculate_mwd_example.md)
+- [calibrate_egh_broadening](demos/calculate_egh_broadening_example.md)
+- [estimate_alpha](demos/estimate_alpha_example.md)
+- [estimate_death](demos/estimate_death_example.md)
+- [fit_mwd](demos/fit_mwd_example.md)
 
-- Assumes fast, complete initiation
-- No chain transfer reactions
-- Single monomer type
-- Termination is irreversible
-- SEC broadening modeled as EMG or EGH
+Before running any of the examples, the following concepts are important to understand.
 
-## Contributing
+### SEC Line Broadening
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Analysis of the molecular weight distribution is made more difficult by the inherent line broadening of SEC systems. Since the movement of a polymer chain through a column is a stochastic process, even a sample with a single molecular weight will exhibit a measurable line width. This library accounts for that by either applying line broadening when calculating the molecular weight distribution, or accounting for it when performing a fit. When fitting, the line broadening can be one of the fit parameters, but we highly recommend estimating it using a polystyrene calibration sample and using the "calibrate_egh_broadening" function to find the calibration value to be added as a parameter.
 
-## Citation
+The library provides three ways to model line broadening: Gaussian, Exponentially Modified Gaussian ([Vega & Schnöll-Bitai, 2005](https://doi.org/10.1016/j.chroma.2005.08.003)), and Exponential Gaussian Hybrid ([Lan & Jorgenson, 2001](https://doi.org/10.1016/S0021-9673(01)00594-5)). Our experience suggests that the exponential Gaussian hybrid model works best for our SEC instrument.
 
-If you use this library in your research, please cite:
+### kt/kp
 
-```
-[Your publication details here]
-```
+Instead of providing the termination rate constant (kt), the functions instead work with the quantity alpha, defined as alpha=kt/kp. This is because the molecular weight distribution contains no absolute time information — the same distribution could result from a ten-second or ten-hour polymerization. This means we can only determine the ratio of termination rate to propagation rate (alpha) from the shape of the molecular weight distribution.
 
-## License
+### Termination Kinetics
 
-MIT License - see LICENSE file for details.
+We have found that different polymerizations undergo different termination mechanisms. Depending on the chemistry, different or multiple pathways may be dominant. To cover the different cases we studied, some of the functions take a kinetics parameter that determines which kinetic model to use. The already written models are located in [polyterm/kinetics](polyterm/kinetics).
 
-## Authors
+### Units
 
-[Your name and affiliation]
+The library is unit agnostic. This means any units can be provided, but they MUST be consistent. For example, if monomer molecular weight is provided in g/mol, the molecular weights of the SEC trace must also be g/mol. This applies to kinetic quantities as well.
 
 ## Acknowledgments
 
-This library implements kinetic models from the polymer science literature on controlled living polymerizations with termination.
+This library was ideated by Professor Damien Guironnet and Michael Taleff. The library was written by Michael Taleff with the assistance of Claude Code. We would also like to thank Professor Simon Harrisson for helpful discussions on controlled radical polymerizations.

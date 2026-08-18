@@ -141,6 +141,6 @@ __all__ = [
 ]
 
 # Package metadata
-__author__ = "Your Name"
-__email__ = "your.email@example.com"
+__author__ = "Michael Taleff"
+__email__ = "mtaleff2@illinois.edu"
 __license__ = "MIT"
